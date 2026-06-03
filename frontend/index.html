@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>IOCL RO Safety Inspection</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#C41230">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    :root {
+      --red: #C41230; --red-dark: #9B0E24;
+      --high: #DC2626; --medium: #D97706; --low: #16A34A;
+      --bg: #F8F9FA; --card: #FFFFFF; --border: #E2E8F0;
+      --text: #1E293B; --muted: #64748B; --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header {
+      background: var(--red); color: white; padding: 14px 20px;
+      display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    .logo {
+      width: 38px; height: 38px; background: white; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; color: var(--red); font-size: 12px; flex-shrink: 0;
+    }
+    header h1 { font-size: 17px; font-weight: 700; }
+    header p  { font-size: 11px; opacity: .85; }
+
+    .progress-bar-wrap {
+      background: var(--card); padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: var(--muted); margin-bottom: 5px;
+    }
+    .progress-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--red); border-radius: 3px; transition: width .3s; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+    .meta-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
+    }
+    .meta-card h2 { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; }
+    .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 560px) { .meta-row { grid-template-columns: 1fr; } }
+    .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+    .field input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+    .field input:focus { outline: none; border-color: var(--red); }
+
+    .section-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; overflow: hidden; }
+    .section-header { display: flex; align-items: center; padding: 12px 16px; cursor: pointer; user-select: none; gap: 10px; }
+    .section-header:hover { background: #FAFBFC; }
+    .section-num { width: 26px; height: 26px; background: var(--red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .section-name { font-weight: 600; font-size: 13px; flex: 1; }
+    .section-stats { font-size: 11px; color: var(--muted); }
+    .section-chevron { font-size: 10px; color: var(--muted); transition: transform .2s; }
+    .section-card.open .section-chevron { transform: rotate(180deg); }
+    .section-body { display: none; border-top: 1px solid var(--border); }
+    .section-card.open .section-body { display: block; }
+
+    .item-row { padding: 11px 16px; border-bottom: 1px solid #F1F5F9; }
+    .item-row:last-child { border-bottom: none; }
+    .item-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .item-id { font-size: 10px; font-weight: 700; color: var(--red); background: #FFF1F3; padding: 2px 5px; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+    .item-desc { font-size: 13px; line-height: 1.45; }
+    .response-btns { display: flex; gap: 6px; margin-bottom: 6px; }
+    .r-btn { padding: 5px 13px; border-radius: 5px; border: 1.5px solid var(--border); font-size: 12px; font-weight: 600; cursor: pointer; background: white; transition: all .12s; }
+    .r-btn:hover { border-color: var(--red); color: var(--red); }
+    .r-btn.active-yes  { background: #DCFCE7; border-color: #16A34A; color: #16A34A; }
+    .r-btn.active-no   { background: #FEE2E2; border-color: #DC2626; color: #DC2626; }
+    .r-btn.active-na   { background: #F1F5F9; border-color: #94A3B8; color: #64748B; }
+    .remark-wrap { display: none; }
+    .remark-wrap.show  { display: block; }
+    .remark-input { width: 100%; padding: 6px 9px; border: 1px solid var(--border); border-radius: 5px; font-size: 12px; resize: vertical; min-height: 32px; font-family: inherit; }
+    .remark-input:focus { outline: none; border-color: var(--red); }
+
+    .submit-area { margin-top: 22px; text-align: center; padding-bottom: 40px; }
+    .submit-btn { background: var(--red); color: white; border: none; padding: 13px 48px; font-size: 15px; font-weight: 700; border-radius: 8px; cursor: pointer; }
+    .submit-btn:hover { background: var(--red-dark); }
+    .submit-btn:disabled { background: #CBD5E1; cursor: not-allowed; }
+    .submit-hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
+
+    /* ── DASHBOARD ── */
+    #dashboard { display: none; max-width: 900px; margin: 0 auto; padding: 20px; padding-bottom: 40px; }
+    .insp-meta { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 14px; }
+    .risk-banner { border-radius: var(--radius); padding: 26px 20px; text-align: center; margin-bottom: 16px; color: white; }
+    .risk-banner.high   { background: var(--high); }
+    .risk-banner.medium { background: var(--medium); }
+    .risk-banner.low    { background: var(--low); }
+    .risk-lbl { font-size: 11px; opacity: .9; text-transform: uppercase; letter-spacing: 1px; }
+    .risk-val { font-size: 52px; font-weight: 800; margin: 4px 0; }
+    .risk-sub { font-size: 13px; opacity: .85; }
+
+    .scores-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 640px) { .scores-grid { grid-template-columns: repeat(2,1fr); } }
+    .score-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
+    .s-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .s-val { font-size: 26px; font-weight: 800; color: var(--red); }
+    .s-unit{ font-size: 11px; color: var(--muted); }
+
+    .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    @media (max-width: 560px) { .bottom-grid { grid-template-columns: 1fr; } }
+    .info-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .info-card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 10px; }
+    .hidden-val  { font-size: 42px; font-weight: 800; color: var(--high); }
+    .hidden-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .flag-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .flag-row:last-child { border-bottom: none; }
+    .flag-score { font-weight: 700; color: var(--high); font-size: 12px; }
+    .lc-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .lc-row:last-child { border-bottom: none; }
+    .no-flags { color: var(--low); font-size: 13px; font-weight: 500; }
+
+    .ai-panel { background: #F8F9FA; border: 2px dashed var(--border); border-radius: var(--radius); padding: 28px 20px; text-align: center; margin-bottom: 14px; }
+    .ai-badge { display: inline-block; background: var(--border); color: var(--muted); font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
+    .ai-panel h3 { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+    .ai-panel p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .new-btn { display: block; width: 100%; padding: 13px; background: white; border: 2px solid var(--red); color: var(--red); font-size: 14px; font-weight: 700; border-radius: 8px; cursor: pointer; }
+    .new-btn:hover { background: var(--red); color: white; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 3px solid rgba(255,255,255,.4); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1E293B; color: white; padding: 9px 18px; border-radius: 6px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+
+    .demo-bar { background: #FFFBEB; border-bottom: 1px solid #FDE68A; padding: 8px 20px; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 13px; color: #92400E; }
+    .demo-btn { background: #F59E0B; color: white; border: none; padding: 5px 16px; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .demo-btn:hover { background: #D97706; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">IOC</div>
+  <div>
+    <h1>RO Safety Inspection</h1>
+    <p>OISD-GDN-192 Annexure IV · 144 items</p>
+  </div>
+</header>
+
+<div class="demo-bar" id="demoBar">
+  <span>Testing? Fill all 144 items instantly with sample data.</span>
+  <button class="demo-btn" onclick="demoFill()">⚡ Demo Fill</button>
+</div>
+
+<div class="progress-bar-wrap" id="progressWrap">
+  <div class="progress-label">
+    <span id="progressText">0 of 144 items filled</span>
+    <span id="progressPct">0%</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<main id="formView">
+  <div class="meta-card">
+    <h2>Inspection Details</h2>
+    <div class="meta-row">
+      <div class="field">
+        <label>Inspection ID</label>
+        <input type="text" id="inspectionId" placeholder="e.g. INSP00713">
+      </div>
+      <div class="field">
+        <label>RO / Station Name</label>
+        <input type="text" id="roName" placeholder="e.g. Delhi Cantonment RO">
+      </div>
+    </div>
+  </div>
+
+  <div id="checklistContainer"></div>
+
+  <div class="submit-area">
+    <button class="submit-btn" id="submitBtn" onclick="submitInspection()">Submit &amp; Analyse</button>
+    <p class="submit-hint">All 144 items must have a response before submitting.</p>
+  </div>
+</main>
+
+<div id="dashboard">
+  <div class="insp-meta" id="dashMeta"></div>
+  <div class="risk-banner" id="riskBanner">
+    <div class="risk-lbl">Overall Risk Level</div>
+    <div class="risk-val" id="riskVal">—</div>
+    <div class="risk-sub" id="riskSub">—</div>
+  </div>
+
+  <div class="scores-grid">
+    <div class="score-card"><div class="s-lbl">Final Risk Index</div><div class="s-val" id="sFRI">—</div><div class="s-unit">High ≥ 25 · Med ≥ 15</div></div>
+    <div class="score-card"><div class="s-lbl">Compliance</div><div class="s-val" id="sComp">—</div><div class="s-unit">%</div></div>
+    <div class="score-card"><div class="s-lbl">Numerical Risk</div><div class="s-val" id="sNum">—</div><div class="s-unit">score</div></div>
+    <div class="score-card"><div class="s-lbl">Semantic Risk</div><div class="s-val" id="sSem">—</div><div class="s-unit">score</div></div>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="info-card">
+      <h3>Hidden Risks</h3>
+      <div class="hidden-val" id="hiddenRisks">—</div>
+      <div class="hidden-desc">items ticked Yes with High-risk remark</div>
+    </div>
+    <div class="info-card">
+      <h3>Label Distribution</h3>
+      <div id="labelCounts">—</div>
+    </div>
+  </div>
+
+  <div class="info-card" style="margin-bottom:12px;">
+    <h3>Section Flags <span style="font-weight:400;font-size:10px;">(compliance &lt; 70%)</span></h3>
+    <div id="sectionFlags">—</div>
+  </div>
+
+  <div class="ai-panel">
+    <div class="ai-badge">Coming Soon</div>
+    <h3>AI Recommendation Engine</h3>
+    <p>LLaMA + RAG-powered corrective action suggestions<br>based on OISD rule book and past incident data.<br>Available once the guide provides the recommendation corpus.</p>
+  </div>
+
+  <button class="new-btn" onclick="resetForm()">+ Start New Inspection</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CHECKLIST = [
+  { section:"PPE", items:[
+    {item_id:"A1",  description:"Industrial Safety Helmets with chin strap being used"},
+    {item_id:"A2",  description:"Safety Shoes being used by all workers"},
+    {item_id:"A3",  description:"Cotton Coverall used in hazardous area or as per job requirement"},
+    {item_id:"B1",  description:"Full body safety harness with double lanyard available"},
+    {item_id:"B2",  description:"Fall arrester and lifeline available"},
+    {item_id:"B3",  description:"Ear plug and ear muff available"},
+    {item_id:"B4",  description:"Special foot and leg protection available as per job requirement"},
+    {item_id:"B5",  description:"Goggles of appropriate type available"},
+    {item_id:"B6",  description:"Face shield available"},
+    {item_id:"B8",  description:"Breathing apparatus and respiratory protective device available"},
+    {item_id:"B9",  description:"Gas filter mask and dust mask available"},
+    {item_id:"B10", description:"Hand gloves of appropriate type available"},
+    {item_id:"C1",  description:"Workers trained and briefed to use PPEs correctly"},
+    {item_id:"C2",  description:"System of checking quality and quantity of PPEs exists"}
+  ]},
+  { section:"Housekeeping", items:[
+    {item_id:"HK1", description:"Standards of housekeeping defined in contract and maintained"},
+    {item_id:"HK2", description:"Areas identified and marked for stacking of material"},
+    {item_id:"HK3", description:"Surplus excavated material and scrap removed on regular basis"},
+    {item_id:"HK4", description:"Pathways and roads maintained free from obstructions"},
+    {item_id:"HK5", description:"Actions taken to avoid slippery areas due to oil spillage or water"},
+    {item_id:"HK6", description:"System for collecting and disposing small scraps in place"},
+    {item_id:"HK7", description:"Area maintained free from vegetation garbage and kept clean"},
+    {item_id:"HK8", description:"Proper disposal of hazardous and medical wastes"}
+  ]},
+  { section:"Excavation", items:[
+    {item_id:"EX1", description:"Detailed plan of excavation approved by competent authority"},
+    {item_id:"EX2", description:"Excavation permit obtained"},
+    {item_id:"EX3", description:"Workplace thoroughly inspected before work permit issuance"},
+    {item_id:"EX4", description:"Proper shoring provided for excavation exceeding 1.5m depth"},
+    {item_id:"EX5", description:"Barricading of 1m height with glowing caution board provided"},
+    {item_id:"EX6", description:"Excavated earth placed beyond 1m from edge of trench"},
+    {item_id:"EX7", description:"Heavy vehicle movement restricted near excavation area"}
+  ]},
+  { section:"Permits", items:[
+    {item_id:"PM1", description:"Valid work permit issued before starting any work"},
+    {item_id:"PM2", description:"JSA carried out before issuing permit"},
+    {item_id:"PM3", description:"Toolbox talk conducted and record maintained"},
+    {item_id:"PM4", description:"All conditions of permit fulfilled before starting job"},
+    {item_id:"PM5", description:"Compliance of all recommendations ensured during job"},
+    {item_id:"PM6", description:"Permits available at work site at all times"},
+    {item_id:"PM7", description:"Hot work permit registered in fire station"},
+    {item_id:"PM8", description:"Permits closed after job completion and retained for 6 months"}
+  ]},
+  { section:"Cutting_Welding_Grinding", items:[
+    {item_id:"WG1",  description:"Oxygen and acetylene cylinders kept outside confined space"},
+    {item_id:"WG2",  description:"Cylinders kept in upright position with valve cap and secured"},
+    {item_id:"WG3",  description:"Cylinder valves checked for damage"},
+    {item_id:"WG4",  description:"Gas cylinders kept away from combustible materials"},
+    {item_id:"WG5",  description:"Hoses of approved quality and free from damage or crack"},
+    {item_id:"WG6",  description:"Oxygen and acetylene stored separately at 5 feet minimum"},
+    {item_id:"WG7",  description:"Colour coding used for identification of cylinders and hoses"},
+    {item_id:"WG8",  description:"Flash back arrestors of approved make being used"},
+    {item_id:"WG9",  description:"Pressure gauges in working condition"},
+    {item_id:"WG10", description:"Welding shields used during welding"},
+    {item_id:"WG11", description:"Proper earthing for welding machines provided"},
+    {item_id:"WG12", description:"30mA ELCB/RCCB provided on power supply of welding machine"}
+  ]},
+  { section:"Abrasive_Blasting_Painting", items:[
+    {item_id:"AB1", description:"Abrasive blasting approved by competent person"},
+    {item_id:"AB2", description:"Air compressor positioned away from work place"},
+    {item_id:"AB3", description:"Operator wearing suitable PPE including face mask"},
+    {item_id:"AB4", description:"Adequate measures adopted to confine dust and flying particles"}
+  ]},
+  { section:"Working_at_Heights", items:[
+    {item_id:"WH1", description:"Work permit obtained for work at height above 1.8 meters"},
+    {item_id:"WH2", description:"Full body safety harness used while working at heights"},
+    {item_id:"WH3", description:"Area below working at height cordoned off"},
+    {item_id:"WH4", description:"Scaffold inspected by competent person and tagged prior to use"},
+    {item_id:"WH5", description:"Safety net with proper working arrangement provided"}
+  ]},
+  { section:"Confined_Space", items:[
+    {item_id:"CS1",  description:"Positive isolation of vessel done as per approved blind list"},
+    {item_id:"CS2",  description:"Valid permit obtained before confined space entry"},
+    {item_id:"CS3",  description:"Gas test for hydrocarbon toxic gas and oxygen level checked"},
+    {item_id:"CS4",  description:"Adequate oxygen level ensured before entry"},
+    {item_id:"CS5",  description:"Sufficient means of entry and exit available"},
+    {item_id:"CS6",  description:"Provision of ventilation to remove welding fumes and toxic gases"},
+    {item_id:"CS7",  description:"24V flameproof hand lamps used inside confined space"},
+    {item_id:"CS8",  description:"Two standby persons stationed outside confined space"},
+    {item_id:"CS9",  description:"Life belt with standby person control available"},
+    {item_id:"CS10", description:"Workers in confined space trained and of sound health"}
+  ]},
+  { section:"Material_Handling_Lifting", items:[
+    {item_id:"MH1", description:"Lifting tools tackles tested with safe working load marked"},
+    {item_id:"MH2", description:"Chain blocks and cables inspected before each use"},
+    {item_id:"MH3", description:"Trained riggers available along with crane"},
+    {item_id:"MH4", description:"Lifting plan prepared and approved before work"}
+  ]},
+  { section:"Electrical_Safety", items:[
+    {item_id:"EL1",  description:"Electrical line clearance procedure followed with LOTO system"},
+    {item_id:"EL2",  description:"Danger signs with voltage rating displayed at substation and work site"},
+    {item_id:"EL3",  description:"Contractor engaged licensed electricians with valid certificates"},
+    {item_id:"EL4",  description:"Earthing and bonding of non-current carrying metallic parts done"},
+    {item_id:"EL5",  description:"Portable hand lamps not exceeding 24V used in confined spaces"},
+    {item_id:"EL6",  description:"Switches MCBs and fuses inspected for proper ratings"},
+    {item_id:"EL7",  description:"ELCB/RCCB installed and tested on incoming side"},
+    {item_id:"EL8",  description:"All portable appliances have insulated three pin plugs"},
+    {item_id:"EL9",  description:"Industrial type extension boards and plug sockets used"},
+    {item_id:"EL10", description:"Standard practices for cable termination followed"},
+    {item_id:"EL11", description:"Supervisor and workers trained in first aid for electrical shock"}
+  ]},
+  { section:"Road_Work", items:[
+    {item_id:"RW1", description:"Site barricaded with warning signs and night warning lamps"},
+    {item_id:"RW2", description:"Road rollers driven by experienced drivers with valid license"}
+  ]},
+  { section:"Formwork_Reinforcement", items:[
+    {item_id:"FW1", description:"Formwork shuttering shoring adequately designed for load"},
+    {item_id:"FW2", description:"Workers using PPE at work site including safety shoes and helmet"}
+  ]},
+  { section:"Concreting", items:[
+    {item_id:"CO1", description:"Concreting area barricaded"},
+    {item_id:"CO2", description:"Earthing of electrical mixers and vibrators provided"}
+  ]},
+  { section:"Demolishing", items:[
+    {item_id:"DM1", description:"Initial survey carried out for structural problems and hazards"},
+    {item_id:"DM2", description:"Electrical and utility lines isolated before demolition"}
+  ]},
+  { section:"Radiography", items:[
+    {item_id:"RA1", description:"Safety precautions for radiography source as per AERB code"},
+    {item_id:"RA2", description:"Area cordoned with proper signs during radiography"},
+    {item_id:"RA3", description:"Radiographer has valid certificate from competent authority"}
+  ]},
+  { section:"Hydrocarbon_Safety", items:[
+    {item_id:"HC1",  description:"All jobs carried out with valid work permit as per OISD-STD-105"},
+    {item_id:"HC2",  description:"Smoking prohibited and No Smoking notices prominently displayed"},
+    {item_id:"HC3",  description:"Only approved type electrical installations used in hazardous area"},
+    {item_id:"HC4",  description:"Oily rags waste and spontaneous ignition materials removed"},
+    {item_id:"HC5",  description:"Combustible materials properly shielded near welding area"},
+    {item_id:"HC6",  description:"Gas testing done with calibrated detector before hot work"},
+    {item_id:"HC7",  description:"Regular inspections done at fire risk locations"},
+    {item_id:"HC8",  description:"Fire extinguishing equipment at strategic locations and maintained"},
+    {item_id:"HC9",  description:"Access to fire extinguishing equipment kept clear at all times"},
+    {item_id:"HC10", description:"All supervisors and sufficient workers trained in fire extinguisher use"},
+    {item_id:"HC11", description:"Audio warning system for fire provided and audible across site"},
+    {item_id:"HC12", description:"Approved ERDMP and ERP in place for evacuation"}
+  ]},
+  { section:"Emergency_Procedures", items:[
+    {item_id:"EP1",  description:"Signaling and siren system is effective"},
+    {item_id:"EP2",  description:"Arrangement for rescuing affected persons is adequate"},
+    {item_id:"EP3",  description:"Signs showing emergency exit route installed"},
+    {item_id:"EP4",  description:"Emergency exit route clear of obstacles"},
+    {item_id:"EP5",  description:"Communication system adequate"},
+    {item_id:"EP6",  description:"Emergency vehicle with driver provided for emergencies"},
+    {item_id:"EP7",  description:"Tie-up with hospitals or local doctors exists"},
+    {item_id:"EP8",  description:"Assembly point for workers identified and earmarked"},
+    {item_id:"EP9",  description:"Training provided to workers for first aid"},
+    {item_id:"EP10", description:"Emergency telephone numbers prominently displayed at site"},
+    {item_id:"EP11", description:"Emergency mock drills being conducted regularly"}
+  ]},
+  { section:"Welfare_Facilities", items:[
+    {item_id:"WF1", description:"Hygienic conditions prevailing at labour camps"},
+    {item_id:"WF2", description:"First aid facilities available at site"},
+    {item_id:"WF3", description:"Proper sanitation exists at site office and labour camps"},
+    {item_id:"WF4", description:"Medical facility tie-ups with nearby hospital exist"},
+    {item_id:"WF5", description:"Proper drinking water facility available for workmen and staff"},
+    {item_id:"WF6", description:"Canteen restroom and toilet facilities provided"},
+    {item_id:"WF7", description:"Adequate washing facility available"},
+    {item_id:"WF8", description:"Proper ventilation at working place exists"}
+  ]},
+  { section:"General", items:[
+    {item_id:"GN1",  description:"Illumination levels at workplace and passages adequate"},
+    {item_id:"GN2",  description:"Communication system adequate"},
+    {item_id:"GN3",  description:"Display and caution boards provided at strategic locations"},
+    {item_id:"GN4",  description:"Structure adequately secured against storm and high winds"},
+    {item_id:"GN5",  description:"Equipment properly earthed"},
+    {item_id:"GN6",  description:"Vehicles checked for brakes oil and lights on regular basis"},
+    {item_id:"GN7",  description:"Compressed air used only for intended purpose"},
+    {item_id:"GN8",  description:"Proper clothes and not loose clothes used near machinery"},
+    {item_id:"GN9",  description:"High visibility reflective clothing provided to workers"},
+    {item_id:"GN10", description:"Machine guards over moving parts installed"},
+    {item_id:"GN11", description:"Working platforms and gangways provided with hand rails and toe guards"},
+    {item_id:"GN12", description:"Vehicles and engine equipment certified and exhaust with spark arrestor"},
+    {item_id:"GN13", description:"Contractors inform workers about hazards and safe procedures"}
+  ]},
+  { section:"Safety_Awareness_Training", items:[
+    {item_id:"SA1", description:"Awareness programmes using different methodologies conducted"},
+    {item_id:"SA2", description:"Training on safety health and environment conducted for workforce"}
+  ]},
+  { section:"Documentation", items:[
+    {item_id:"DC1", description:"Proper system of reporting incidents available"},
+    {item_id:"DC2", description:"Regular toolbox talks and safety committee meetings conducted with records"},
+    {item_id:"DC3", description:"System for financial deterrents for non-compliance in place"},
+    {item_id:"DC4", description:"Rewards and recognitions system for safety compliance exists"}
+  ]}
+];
+
+const TOTAL = CHECKLIST.reduce((a, s) => a + s.items.length, 0);
+const responses = {};
+
+function buildChecklist() {
+  const container = document.getElementById('checklistContainer');
+  container.innerHTML = '';
+  CHECKLIST.forEach((sec, si) => {
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    card.id = `sec-${sec.section}`;
+    const label = sec.section.replace(/_/g, ' ');
+    card.innerHTML = `
+      <div class="section-header" onclick="toggleSection('${sec.section}')">
+        <div class="section-num">${si + 1}</div>
+        <div class="section-name">${label}</div>
+        <div class="section-stats" id="stats-${sec.section}">0 / ${sec.items.length}</div>
+        <div class="section-chevron">▼</div>
+      </div>
+      <div class="section-body" id="body-${sec.section}">
+        ${sec.items.map(it => itemHTML(sec.section, it)).join('')}
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function itemHTML(section, it) {
+  const k = it.item_id;
+  return `<div class="item-row" id="item-${k}">
+    <div class="item-top">
+      <span class="item-id">${k}</span>
+      <span class="item-desc">${it.description}</span>
+    </div>
+    <div class="response-btns">
+      <button class="r-btn" onclick="setResponse('${section}','${k}','Yes',this)">Yes</button>
+      <button class="r-btn" onclick="setResponse('${section}','${k}','No',this)">No</button>
+      <button class="r-btn" onclick="setResponse('${section}','${k}','NA',this)">N/A</button>
+    </div>
+    <div class="remark-wrap" id="rw-${k}">
+      <textarea class="remark-input" id="rem-${k}" placeholder="Add remark…" rows="2"
+        oninput="if(responses['${k}']) responses['${k}'].remark=this.value"></textarea>
+    </div>
+  </div>`;
+}
+
+function toggleSection(sec) {
+  document.getElementById(`sec-${sec}`).classList.toggle('open');
+}
+
+function setResponse(section, key, val, btn) {
+  btn.parentElement.querySelectorAll('.r-btn').forEach(b => { b.className = 'r-btn'; });
+  btn.classList.add(`active-${val.toLowerCase()}`);
+  const prev = responses[key] || {};
+  responses[key] = { response: val, remark: prev.remark || '' };
+  document.getElementById(`rw-${key}`).classList.toggle('show', val !== 'NA');
+  updateProgress(section);
+}
+
+function updateProgress(section) {
+  const sec = CHECKLIST.find(s => s.section === section);
+  const filled = sec.items.filter(it => responses[it.item_id]).length;
+  document.getElementById(`stats-${section}`).textContent = `${filled} / ${sec.items.length}`;
+  const total = Object.keys(responses).length;
+  const pct = Math.round(total / TOTAL * 100);
+  document.getElementById('progressText').textContent = `${total} of ${TOTAL} items filled`;
+  document.getElementById('progressPct').textContent = `${pct}%`;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+async function submitInspection() {
+  const inspId = document.getElementById('inspectionId').value.trim();
+  const roName = document.getElementById('roName').value.trim();
+  if (!inspId || !roName) { showToast('Fill in Inspection ID and RO Name first.'); return; }
+
+  const missing = CHECKLIST.flatMap(s => s.items).filter(it => !responses[it.item_id]);
+  if (missing.length) {
+    showToast(`${missing.length} items still need a response.`);
+    const firstSec = CHECKLIST.find(s => s.items.some(it => !responses[it.item_id]));
+    if (firstSec) {
+      const card = document.getElementById(`sec-${firstSec.section}`);
+      if (!card.classList.contains('open')) card.classList.add('open');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Analysing…';
+
+  const items = CHECKLIST.flatMap(s => s.items.map(it => ({
+    section: s.section,
+    item_id: it.item_id,
+    response: responses[it.item_id].response,
+    remark: responses[it.item_id].remark || it.description
+  })));
+
+  try {
+    const res = await fetch('/assess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inspection_id: inspId, ro_name: roName, items })
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    renderDashboard(await res.json(), inspId, roName);
+  } catch (e) {
+    showToast('Error: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = 'Submit &amp; Analyse';
+  }
+}
+
+function renderDashboard(data, inspId, roName) {
+  document.getElementById('formView').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('demoBar').style.display = 'none';
+  const dash = document.getElementById('dashboard');
+  dash.style.display = 'block';
+  window.scrollTo(0, 0);
+
+  document.getElementById('dashMeta').textContent = `${inspId}  ·  ${roName}`;
+
+  const risk = data.overall_risk;
+  const banner = document.getElementById('riskBanner');
+  banner.className = 'risk-banner ' + risk.toLowerCase();
+  document.getElementById('riskVal').textContent = risk;
+  document.getElementById('riskSub').textContent = `Final Risk Index: ${data.final_risk_index}`;
+
+  document.getElementById('sFRI').textContent  = data.final_risk_index;
+  document.getElementById('sComp').textContent = data.compliance_score;
+  document.getElementById('sNum').textContent  = data.numerical_risk_score;
+  document.getElementById('sSem').textContent  = data.semantic_risk_score;
+  document.getElementById('hiddenRisks').textContent = data.hidden_risks;
+
+  document.getElementById('labelCounts').innerHTML =
+    Object.entries(data.label_counts)
+      .map(([k, v]) => `<div class="lc-row"><span>${k}</span><strong>${v}</strong></div>`)
+      .join('') || '<span style="color:var(--muted)">—</span>';
+
+  const flags = data.section_flags;
+  const keys  = Object.keys(flags);
+  document.getElementById('sectionFlags').innerHTML = keys.length
+    ? keys.map(s => `<div class="flag-row"><span>${s.replace(/_/g,' ')}</span><span class="flag-score">${flags[s]}%</span></div>`).join('')
+    : '<p class="no-flags">✓ All sections scored ≥ 70% — no flags.</p>';
+}
+
+function resetForm() {
+  Object.keys(responses).forEach(k => delete responses[k]);
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('formView').style.display = 'block';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('demoBar').style.display = 'flex';
+  document.getElementById('inspectionId').value = '';
+  document.getElementById('roName').value = '';
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = false; btn.innerHTML = 'Submit &amp; Analyse';
+  document.getElementById('progressText').textContent = `0 of ${TOTAL} items filled`;
+  document.getElementById('progressPct').textContent = '0%';
+  document.getElementById('progressFill').style.width = '0%';
+  buildChecklist();
+  window.scrollTo(0, 0);
+}
+
+// ── Demo fill ──────────────────────────────────────────────────────────────
+const DEMO_REMARKS = {
+  Yes: [
+    "Compliant. Checked and found satisfactory during inspection.",
+    "Present and in good condition. Records verified.",
+    "Available and properly maintained. Certification current.",
+    "Implemented as per OISD requirements. No issues observed.",
+    "All workers trained and records available.",
+    "Equipment inspected and tagged. No defects found.",
+    "Fire extinguisher present but pressure slightly low — noted for servicing.",
+    "Helmets available but two workers in dispensing area not wearing them.",
+    "Permit issued. One permit found with minor documentation gap.",
+  ],
+  No: [
+    "Not available at site. Procurement pending.",
+    "Not implemented. No evidence of compliance.",
+    "Found non-compliant during inspection. Immediate action required.",
+    "Emergency exit blocked by LPG storage. High risk.",
+    "No ELCB installed on welding machine power supply. Electrocution risk.",
+    "Gas testing not done before hot work commenced. Work stopped.",
+    "Flash back arrestors missing on gas cutting equipment near fuel area.",
+    "Oxygen and acetylene stored together — no separation maintained.",
+    "No housekeeping standards defined. Oil spillage near dispensing area.",
+  ],
+  NA: [
+    "Not applicable at this RO during inspection period.",
+    "No such activity conducted at this outlet.",
+    "Not applicable. Activity not present at site.",
+  ]
+};
+
+function demoFill() {
+  // Auto-fill metadata if blank
+  if (!document.getElementById('inspectionId').value)
+    document.getElementById('inspectionId').value = 'INSP_DEMO_' + Date.now().toString().slice(-4);
+  if (!document.getElementById('roName').value)
+    document.getElementById('roName').value = 'Demo RO Station';
+
+  // Realistic response distribution: ~60% Yes, ~25% No, ~15% NA
+  const dist = [];
+  for (let i = 0; i < 60; i++) dist.push('Yes');
+  for (let i = 0; i < 25; i++) dist.push('No');
+  for (let i = 0; i < 15; i++) dist.push('NA');
+
+  CHECKLIST.forEach(sec => {
+    sec.items.forEach(it => {
+      const val = dist[Math.floor(Math.random() * dist.length)];
+      const pool = DEMO_REMARKS[val];
+      const remark = pool[Math.floor(Math.random() * pool.length)];
+      responses[it.item_id] = { response: val, remark };
+
+      // Update button UI
+      const row = document.getElementById(`item-${it.item_id}`);
+      if (!row) return;
+      row.querySelectorAll('.r-btn').forEach(b => { b.className = 'r-btn'; });
+      const btns = row.querySelectorAll('.r-btn');
+      const idx = ['Yes','No','NA'].indexOf(val);
+      if (btns[idx]) btns[idx].classList.add(`active-${val.toLowerCase()}`);
+
+      // Show/populate remark textarea
+      const rw = document.getElementById(`rw-${it.item_id}`);
+      const ta = document.getElementById(`rem-${it.item_id}`);
+      if (rw && ta) { rw.classList.toggle('show', val !== 'NA'); ta.value = remark; }
+    });
+    // Update section stats
+    updateProgress(sec.section);
+  });
+
+  showToast('All 144 items filled with demo data. Ready to submit!');
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+buildChecklist();
+</script>
+</body>
+</html>

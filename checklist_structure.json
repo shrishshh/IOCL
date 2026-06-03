@@ -1,0 +1,683 @@
+﻿[
+  {
+    "section": "PPE",
+    "items": [
+      {
+        "item_id": "A1",
+        "description": "Industrial Safety Helmets with chin strap being used"
+      },
+      {
+        "item_id": "A2",
+        "description": "Safety Shoes being used by all workers"
+      },
+      {
+        "item_id": "A3",
+        "description": "Cotton Coverall used in hazardous area or as per job requirement"
+      },
+      {
+        "item_id": "B1",
+        "description": "Full body safety harness with double lanyard available"
+      },
+      {
+        "item_id": "B2",
+        "description": "Fall arrester and lifeline available"
+      },
+      {
+        "item_id": "B3",
+        "description": "Ear plug and ear muff available"
+      },
+      {
+        "item_id": "B4",
+        "description": "Special foot and leg protection available as per job requirement"
+      },
+      {
+        "item_id": "B5",
+        "description": "Goggles of appropriate type available"
+      },
+      {
+        "item_id": "B6",
+        "description": "Face shield available"
+      },
+      {
+        "item_id": "B8",
+        "description": "Breathing apparatus and respiratory protective device available"
+      },
+      {
+        "item_id": "B9",
+        "description": "Gas filter mask and dust mask available"
+      },
+      {
+        "item_id": "B10",
+        "description": "Hand gloves of appropriate type available"
+      },
+      {
+        "item_id": "C1",
+        "description": "Workers trained and briefed to use PPEs correctly"
+      },
+      {
+        "item_id": "C2",
+        "description": "System of checking quality and quantity of PPEs exists"
+      }
+    ]
+  },
+  {
+    "section": "Housekeeping",
+    "items": [
+      {
+        "item_id": "HK1",
+        "description": "Standards of housekeeping defined in contract and maintained"
+      },
+      {
+        "item_id": "HK2",
+        "description": "Areas identified and marked for stacking of material"
+      },
+      {
+        "item_id": "HK3",
+        "description": "Surplus excavated material and scrap removed on regular basis"
+      },
+      {
+        "item_id": "HK4",
+        "description": "Pathways and roads maintained free from obstructions"
+      },
+      {
+        "item_id": "HK5",
+        "description": "Actions taken to avoid slippery areas due to oil spillage or water"
+      },
+      {
+        "item_id": "HK6",
+        "description": "System for collecting and disposing small scraps in place"
+      },
+      {
+        "item_id": "HK7",
+        "description": "Area maintained free from vegetation garbage and kept clean"
+      },
+      {
+        "item_id": "HK8",
+        "description": "Proper disposal of hazardous and medical wastes"
+      }
+    ]
+  },
+  {
+    "section": "Excavation",
+    "items": [
+      {
+        "item_id": "EX1",
+        "description": "Detailed plan of excavation approved by competent authority"
+      },
+      {
+        "item_id": "EX2",
+        "description": "Excavation permit obtained"
+      },
+      {
+        "item_id": "EX3",
+        "description": "Workplace thoroughly inspected before work permit issuance"
+      },
+      {
+        "item_id": "EX4",
+        "description": "Proper shoring provided for excavation exceeding 1.5m depth"
+      },
+      {
+        "item_id": "EX5",
+        "description": "Barricading of 1m height with glowing caution board provided"
+      },
+      {
+        "item_id": "EX6",
+        "description": "Excavated earth placed beyond 1m from edge of trench"
+      },
+      {
+        "item_id": "EX7",
+        "description": "Heavy vehicle movement restricted near excavation area"
+      }
+    ]
+  },
+  {
+    "section": "Permits",
+    "items": [
+      {
+        "item_id": "PM1",
+        "description": "Valid work permit issued before starting any work"
+      },
+      {
+        "item_id": "PM2",
+        "description": "JSA carried out before issuing permit"
+      },
+      {
+        "item_id": "PM3",
+        "description": "Toolbox talk conducted and record maintained"
+      },
+      {
+        "item_id": "PM4",
+        "description": "All conditions of permit fulfilled before starting job"
+      },
+      {
+        "item_id": "PM5",
+        "description": "Compliance of all recommendations ensured during job"
+      },
+      {
+        "item_id": "PM6",
+        "description": "Permits available at work site at all times"
+      },
+      {
+        "item_id": "PM7",
+        "description": "Hot work permit registered in fire station"
+      },
+      {
+        "item_id": "PM8",
+        "description": "Permits closed after job completion and retained for 6 months"
+      }
+    ]
+  },
+  {
+    "section": "Cutting_Welding_Grinding",
+    "items": [
+      {
+        "item_id": "WG1",
+        "description": "Oxygen and acetylene cylinders kept outside confined space"
+      },
+      {
+        "item_id": "WG2",
+        "description": "Cylinders kept in upright position with valve cap and secured"
+      },
+      {
+        "item_id": "WG3",
+        "description": "Cylinder valves checked for damage"
+      },
+      {
+        "item_id": "WG4",
+        "description": "Gas cylinders kept away from combustible materials"
+      },
+      {
+        "item_id": "WG5",
+        "description": "Hoses of approved quality and free from damage or crack"
+      },
+      {
+        "item_id": "WG6",
+        "description": "Oxygen and acetylene stored separately at 5 feet minimum"
+      },
+      {
+        "item_id": "WG7",
+        "description": "Colour coding used for identification of cylinders and hoses"
+      },
+      {
+        "item_id": "WG8",
+        "description": "Flash back arrestors of approved make being used"
+      },
+      {
+        "item_id": "WG9",
+        "description": "Pressure gauges in working condition"
+      },
+      {
+        "item_id": "WG10",
+        "description": "Welding shields used during welding"
+      },
+      {
+        "item_id": "WG11",
+        "description": "Proper earthing for welding machines provided"
+      },
+      {
+        "item_id": "WG12",
+        "description": "30mA ELCB/RCCB provided on power supply of welding machine"
+      }
+    ]
+  },
+  {
+    "section": "Abrasive_Blasting_Painting",
+    "items": [
+      {
+        "item_id": "AB1",
+        "description": "Abrasive blasting approved by competent person"
+      },
+      {
+        "item_id": "AB2",
+        "description": "Air compressor positioned away from work place"
+      },
+      {
+        "item_id": "AB3",
+        "description": "Operator wearing suitable PPE including face mask"
+      },
+      {
+        "item_id": "AB4",
+        "description": "Adequate measures adopted to confine dust and flying particles"
+      }
+    ]
+  },
+  {
+    "section": "Working_at_Heights",
+    "items": [
+      {
+        "item_id": "WH1",
+        "description": "Work permit obtained for work at height above 1.8 meters"
+      },
+      {
+        "item_id": "WH2",
+        "description": "Full body safety harness used while working at heights"
+      },
+      {
+        "item_id": "WH3",
+        "description": "Area below working at height cordoned off"
+      },
+      {
+        "item_id": "WH4",
+        "description": "Scaffold inspected by competent person and tagged prior to use"
+      },
+      {
+        "item_id": "WH5",
+        "description": "Safety net with proper working arrangement provided"
+      }
+    ]
+  },
+  {
+    "section": "Confined_Space",
+    "items": [
+      {
+        "item_id": "CS1",
+        "description": "Positive isolation of vessel done as per approved blind list"
+      },
+      {
+        "item_id": "CS2",
+        "description": "Valid permit obtained before confined space entry"
+      },
+      {
+        "item_id": "CS3",
+        "description": "Gas test for hydrocarbon toxic gas and oxygen level checked"
+      },
+      {
+        "item_id": "CS4",
+        "description": "Adequate oxygen level ensured before entry"
+      },
+      {
+        "item_id": "CS5",
+        "description": "Sufficient means of entry and exit available"
+      },
+      {
+        "item_id": "CS6",
+        "description": "Provision of ventilation to remove welding fumes and toxic gases"
+      },
+      {
+        "item_id": "CS7",
+        "description": "24V flameproof hand lamps used inside confined space"
+      },
+      {
+        "item_id": "CS8",
+        "description": "Two standby persons stationed outside confined space"
+      },
+      {
+        "item_id": "CS9",
+        "description": "Life belt with standby person control available"
+      },
+      {
+        "item_id": "CS10",
+        "description": "Workers in confined space trained and of sound health"
+      }
+    ]
+  },
+  {
+    "section": "Material_Handling_Lifting",
+    "items": [
+      {
+        "item_id": "MH1",
+        "description": "Lifting tools tackles tested with safe working load marked"
+      },
+      {
+        "item_id": "MH2",
+        "description": "Chain blocks and cables inspected before each use"
+      },
+      {
+        "item_id": "MH3",
+        "description": "Trained riggers available along with crane"
+      },
+      {
+        "item_id": "MH4",
+        "description": "Lifting plan prepared and approved before work"
+      }
+    ]
+  },
+  {
+    "section": "Electrical_Safety",
+    "items": [
+      {
+        "item_id": "EL1",
+        "description": "Electrical line clearance procedure followed with LOTO system"
+      },
+      {
+        "item_id": "EL2",
+        "description": "Danger signs with voltage rating displayed at substation and work site"
+      },
+      {
+        "item_id": "EL3",
+        "description": "Contractor engaged licensed electricians with valid certificates"
+      },
+      {
+        "item_id": "EL4",
+        "description": "Earthing and bonding of non-current carrying metallic parts done"
+      },
+      {
+        "item_id": "EL5",
+        "description": "Portable hand lamps not exceeding 24V used in confined spaces"
+      },
+      {
+        "item_id": "EL6",
+        "description": "Switches MCBs and fuses inspected for proper ratings"
+      },
+      {
+        "item_id": "EL7",
+        "description": "ELCB/RCCB installed and tested on incoming side"
+      },
+      {
+        "item_id": "EL8",
+        "description": "All portable appliances have insulated three pin plugs"
+      },
+      {
+        "item_id": "EL9",
+        "description": "Industrial type extension boards and plug sockets used"
+      },
+      {
+        "item_id": "EL10",
+        "description": "Standard practices for cable termination followed"
+      },
+      {
+        "item_id": "EL11",
+        "description": "Supervisor and workers trained in first aid for electrical shock"
+      }
+    ]
+  },
+  {
+    "section": "Road_Work",
+    "items": [
+      {
+        "item_id": "RW1",
+        "description": "Site barricaded with warning signs and night warning lamps"
+      },
+      {
+        "item_id": "RW2",
+        "description": "Road rollers driven by experienced drivers with valid license"
+      }
+    ]
+  },
+  {
+    "section": "Formwork_Reinforcement",
+    "items": [
+      {
+        "item_id": "FW1",
+        "description": "Formwork shuttering shoring adequately designed for load"
+      },
+      {
+        "item_id": "FW2",
+        "description": "Workers using PPE at work site including safety shoes and helmet"
+      }
+    ]
+  },
+  {
+    "section": "Concreting",
+    "items": [
+      {
+        "item_id": "CO1",
+        "description": "Concreting area barricaded"
+      },
+      {
+        "item_id": "CO2",
+        "description": "Earthing of electrical mixers and vibrators provided"
+      }
+    ]
+  },
+  {
+    "section": "Demolishing",
+    "items": [
+      {
+        "item_id": "DM1",
+        "description": "Initial survey carried out for structural problems and hazards"
+      },
+      {
+        "item_id": "DM2",
+        "description": "Electrical and utility lines isolated before demolition"
+      }
+    ]
+  },
+  {
+    "section": "Radiography",
+    "items": [
+      {
+        "item_id": "RA1",
+        "description": "Safety precautions for radiography source as per AERB code"
+      },
+      {
+        "item_id": "RA2",
+        "description": "Area cordoned with proper signs during radiography"
+      },
+      {
+        "item_id": "RA3",
+        "description": "Radiographer has valid certificate from competent authority"
+      }
+    ]
+  },
+  {
+    "section": "Hydrocarbon_Safety",
+    "items": [
+      {
+        "item_id": "HC1",
+        "description": "All jobs carried out with valid work permit as per OISD-STD-105"
+      },
+      {
+        "item_id": "HC2",
+        "description": "Smoking prohibited and No Smoking notices prominently displayed"
+      },
+      {
+        "item_id": "HC3",
+        "description": "Only approved type electrical installations used in hazardous area"
+      },
+      {
+        "item_id": "HC4",
+        "description": "Oily rags waste and spontaneous ignition materials removed"
+      },
+      {
+        "item_id": "HC5",
+        "description": "Combustible materials properly shielded near welding area"
+      },
+      {
+        "item_id": "HC6",
+        "description": "Gas testing done with calibrated detector before hot work"
+      },
+      {
+        "item_id": "HC7",
+        "description": "Regular inspections done at fire risk locations"
+      },
+      {
+        "item_id": "HC8",
+        "description": "Fire extinguishing equipment at strategic locations and maintained"
+      },
+      {
+        "item_id": "HC9",
+        "description": "Access to fire extinguishing equipment kept clear at all times"
+      },
+      {
+        "item_id": "HC10",
+        "description": "All supervisors and sufficient workers trained in fire extinguisher use"
+      },
+      {
+        "item_id": "HC11",
+        "description": "Audio warning system for fire provided and audible across site"
+      },
+      {
+        "item_id": "HC12",
+        "description": "Approved ERDMP and ERP in place for evacuation"
+      }
+    ]
+  },
+  {
+    "section": "Emergency_Procedures",
+    "items": [
+      {
+        "item_id": "EP1",
+        "description": "Signaling and siren system is effective"
+      },
+      {
+        "item_id": "EP2",
+        "description": "Arrangement for rescuing affected persons is adequate"
+      },
+      {
+        "item_id": "EP3",
+        "description": "Signs showing emergency exit route installed"
+      },
+      {
+        "item_id": "EP4",
+        "description": "Emergency exit route clear of obstacles"
+      },
+      {
+        "item_id": "EP5",
+        "description": "Communication system adequate"
+      },
+      {
+        "item_id": "EP6",
+        "description": "Emergency vehicle with driver provided for emergencies"
+      },
+      {
+        "item_id": "EP7",
+        "description": "Tie-up with hospitals or local doctors exists"
+      },
+      {
+        "item_id": "EP8",
+        "description": "Assembly point for workers identified and earmarked"
+      },
+      {
+        "item_id": "EP9",
+        "description": "Training provided to workers for first aid"
+      },
+      {
+        "item_id": "EP10",
+        "description": "Emergency telephone numbers prominently displayed at site"
+      },
+      {
+        "item_id": "EP11",
+        "description": "Emergency mock drills being conducted regularly"
+      }
+    ]
+  },
+  {
+    "section": "Welfare_Facilities",
+    "items": [
+      {
+        "item_id": "WF1",
+        "description": "Hygienic conditions prevailing at labour camps"
+      },
+      {
+        "item_id": "WF2",
+        "description": "First aid facilities available at site"
+      },
+      {
+        "item_id": "WF3",
+        "description": "Proper sanitation exists at site office and labour camps"
+      },
+      {
+        "item_id": "WF4",
+        "description": "Medical facility tie-ups with nearby hospital exist"
+      },
+      {
+        "item_id": "WF5",
+        "description": "Proper drinking water facility available for workmen and staff"
+      },
+      {
+        "item_id": "WF6",
+        "description": "Canteen restroom and toilet facilities provided"
+      },
+      {
+        "item_id": "WF7",
+        "description": "Adequate washing facility available"
+      },
+      {
+        "item_id": "WF8",
+        "description": "Proper ventilation at working place exists"
+      }
+    ]
+  },
+  {
+    "section": "General",
+    "items": [
+      {
+        "item_id": "GN1",
+        "description": "Illumination levels at workplace and passages adequate"
+      },
+      {
+        "item_id": "GN2",
+        "description": "Communication system adequate"
+      },
+      {
+        "item_id": "GN3",
+        "description": "Display and caution boards provided at strategic locations"
+      },
+      {
+        "item_id": "GN4",
+        "description": "Structure adequately secured against storm and high winds"
+      },
+      {
+        "item_id": "GN5",
+        "description": "Equipment properly earthed"
+      },
+      {
+        "item_id": "GN6",
+        "description": "Vehicles checked for brakes oil and lights on regular basis"
+      },
+      {
+        "item_id": "GN7",
+        "description": "Compressed air used only for intended purpose"
+      },
+      {
+        "item_id": "GN8",
+        "description": "Proper clothes and not loose clothes used near machinery"
+      },
+      {
+        "item_id": "GN9",
+        "description": "High visibility reflective clothing provided to workers"
+      },
+      {
+        "item_id": "GN10",
+        "description": "Machine guards over moving parts installed"
+      },
+      {
+        "item_id": "GN11",
+        "description": "Working platforms and gangways provided with hand rails and toe guards"
+      },
+      {
+        "item_id": "GN12",
+        "description": "Vehicles and engine equipment certified and exhaust with spark arrestor"
+      },
+      {
+        "item_id": "GN13",
+        "description": "Contractors inform workers about hazards and safe procedures"
+      }
+    ]
+  },
+  {
+    "section": "Safety_Awareness_Training",
+    "items": [
+      {
+        "item_id": "SA1",
+        "description": "Awareness programmes using different methodologies conducted"
+      },
+      {
+        "item_id": "SA2",
+        "description": "Training on safety health and environment conducted for workforce"
+      }
+    ]
+  },
+  {
+    "section": "Documentation",
+    "items": [
+      {
+        "item_id": "DC1",
+        "description": "Proper system of reporting incidents available"
+      },
+      {
+        "item_id": "DC2",
+        "description": "Regular toolbox talks and safety committee meetings conducted with records"
+      },
+      {
+        "item_id": "DC3",
+        "description": "System for financial deterrents for non-compliance in place"
+      },
+      {
+        "item_id": "DC4",
+        "description": "Rewards and recognitions system for safety compliance exists"
+      }
+    ]
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(py -3.11 -c \"import sklearn, sentence_transformers, fastapi; print\\('all ok'\\)\" 2>&1)",
+      "PowerShell(py -3.11 -m uvicorn --version 2>&1)"
+    ]
+  }
+}
