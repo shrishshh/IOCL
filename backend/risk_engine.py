@@ -8,6 +8,19 @@ Operates on a list of item dicts:
 W_NUMERICAL, W_SEMANTIC = 0.40, 0.60
 LOW_BELOW, HIGH_AT = 15, 25
 
+# Maps department name (users.department) -> section string in checklist items
+DEPT_SECTIONS: dict[str, str] = {
+    "PPE": "PPE",
+    "Housekeeping": "Housekeeping",
+    "Permits": "Permits",
+    "Electrical": "Electrical_Safety",
+    "Hydrocarbon": "Hydrocarbon_Safety",
+    "Emergency": "Emergency_Procedures",
+    "Confined": "Confined_Space",
+    "Welding": "Cutting_Welding_Grinding",
+    "Documentation": "Documentation",
+}
+
 
 def _compliance(items: list[dict]) -> float:
     yes = sum(1 for it in items if it["response"] == "Yes")
@@ -57,6 +70,11 @@ def _final_risk(idx: float) -> str:
     return "Low"
 
 
+def section_scores(items: list[dict]) -> dict[str, float]:
+    """Public alias — compliance score per section (only sections with Yes/No)."""
+    return _section_scores(items)
+
+
 def assess(items: list[dict]) -> dict:
     """
     Takes a list of item dicts (each must have 'response' and 'risk_label').
@@ -95,3 +113,40 @@ def assess(items: list[dict]) -> dict:
         "section_flags": section_flags,
         "label_counts": label_counts,
     }
+
+
+def assess_by_department(items: list[dict]) -> dict[str, dict]:
+    """
+    Same formulas as assess(), but computed separately for each department's
+    mapped section. Skips departments that have no Yes/No items.
+    Returns: {dept_name: {compliance, numerical_risk, semantic_risk,
+                          final_index, risk_band, hidden_risks}}
+    """
+    out: dict[str, dict] = {}
+    for dept, section in DEPT_SECTIONS.items():
+        dept_items = [it for it in items if it["section"] == section]
+        if not any(it["response"] in ("Yes", "No") for it in dept_items):
+            continue
+
+        comp = _compliance(dept_items)
+        label_counts: dict[str, int] = {}
+        for it in dept_items:
+            lbl = it["risk_label"]
+            label_counts[lbl] = label_counts.get(lbl, 0) + 1
+
+        num = _numerical_score(comp)
+        sem = _semantic_score(label_counts)
+        idx = _final_index(num, sem)
+        hidden = sum(
+            1 for it in dept_items
+            if it["response"] == "Yes" and it["risk_label"] == "High"
+        )
+        out[dept] = {
+            "compliance": comp,
+            "numerical_risk": num,
+            "semantic_risk": sem,
+            "final_index": idx,
+            "risk_band": _final_risk(idx),
+            "hidden_risks": hidden,
+        }
+    return out

@@ -4,3 +4,8 @@ scikit-learn
 sentence-transformers
 pydantic
 numpy
+sqlmodel
+passlib[bcrypt]
+bcrypt==4.0.1
+python-jose[cryptography]
+python-multipart
