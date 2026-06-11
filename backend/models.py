@@ -63,11 +63,16 @@ class InspectionItem(SQLModel, table=True):
     response: str
     remark: str
     predicted_label: str
+    # Question text (item description) stored at submit time for RAG quality
+    question: str = Field(default="")
     # Resolution workflow — only Medium/High items are resolvable
     resolved: bool = Field(default=False)
     resolved_by_user_id: Optional[int] = Field(default=None, foreign_key="users.id")
     resolved_by_name: Optional[str] = Field(default=None)   # snapshot of full_name at resolve time
     resolved_at: Optional[str] = Field(default=None)        # UTC ISO string
+    # RAG-generated corrective-action recommendation (filled by background task)
+    recommendation: Optional[str] = Field(default=None)
+    recommendation_sections: Optional[str] = Field(default=None)  # JSON list of cited sections
 
 
 class DepartmentRisk(SQLModel, table=True):

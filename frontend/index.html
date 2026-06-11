@@ -192,12 +192,25 @@
     .chip-low    { background: #DCFCE7; color: var(--low); }
     .item-remark { font-size: 12px; color: var(--muted); margin-top: 2px; font-style: italic; }
 
-    .ai-panel { background: #F8F9FA; border: 2px dashed var(--border); border-radius: var(--radius);
-                padding: 24px 20px; text-align: center; margin-bottom: 14px; }
-    .ai-badge { display: inline-block; background: var(--border); color: var(--muted);
-                font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
-    .ai-panel h3 { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
-    .ai-panel p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .ai-panel { background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: var(--radius);
+                padding: 18px 20px; text-align: center; margin-bottom: 14px; }
+    .ai-badge { display: inline-block; background: #DBEAFE; color: #1D4ED8;
+                font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 20px;
+                margin-bottom: 8px; letter-spacing: .3px; }
+    .ai-panel h3 { font-size: 14px; font-weight: 700; color: #1E3A5F; margin-bottom: 5px; }
+    .ai-panel p  { font-size: 12px; color: #3B5A8A; line-height: 1.6; }
+
+    /* ── Per-item AI recommendation box ────────────────────────────────────── */
+    .rec-box { background: #EFF6FF; border-left: 3px solid #3B82F6;
+               border-radius: 0 4px 4px 0; padding: 8px 12px;
+               margin-top: 7px; font-size: 12px; line-height: 1.6; }
+    .rec-box.rec-pending { background: #F8F9FA; border-left-color: #CBD5E1; }
+    .rec-label { font-size: 10px; font-weight: 700; color: #1D4ED8;
+                 text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+    .rec-box.rec-pending .rec-label { color: var(--muted); }
+    .rec-text  { color: #1E293B; }
+    .rec-box.rec-pending .rec-text { color: var(--muted); font-style: italic; }
+    .rec-cite  { font-size: 10px; color: #64748B; margin-top: 4px; }
 
     /* ── Resolution workflow ─────────────────────────────────────────────── */
     .item-question { font-size: 13px; font-weight: 600; color: var(--text);
@@ -525,6 +538,7 @@ async function submitInspection() {
   const items = CHECKLIST.flatMap(s => s.items.map(it => ({
     section:  s.section,
     item_id:  it.item_id,
+    question: it.description,
     response: responses[it.item_id].response,
     remark:   responses[it.item_id].remark || it.description,
   })));
@@ -650,6 +664,22 @@ async function loadZhDetail(id) {
                 : `<span class="unresolved-badge">&#9888; Unresolved</span>`)
             : '';
           const q = qtext(it.section, it.item_id);
+          let recHtml = '';
+          if (isActionable) {
+            if (it.recommendation) {
+              const secs = (it.recommendation_sections || []).join(' · §');
+              recHtml = `<div class="rec-box">
+                <div class="rec-label">AI Recommendation (OISD-STD-225)</div>
+                <div class="rec-text">${escHtml(it.recommendation)}</div>
+                ${secs ? `<div class="rec-cite">Source: OISD-STD-225 §${escHtml(secs)}</div>` : ''}
+              </div>`;
+            } else {
+              recHtml = `<div class="rec-box rec-pending">
+                <div class="rec-label">AI Recommendation</div>
+                <div class="rec-text">Generating…</div>
+              </div>`;
+            }
+          }
           return `
           <div class="item-detail-row">
             ${q ? `<div class="item-question">${escHtml(q)}</div>` : ''}
@@ -660,6 +690,7 @@ async function loadZhDetail(id) {
               ${resStatus}
             </div>
             ${it.remark ? `<div class="item-remark">"${escHtml(it.remark)}"</div>` : ''}
+            ${recHtml}
           </div>`;
         }).join('')}
       </div>
@@ -684,9 +715,9 @@ async function loadZhDetail(id) {
     <div class="card"><h2>Section Flags (compliance &lt; 70%)</h2>${flagsHtml}</div>
     <div class="card"><h2>Department Breakdown</h2>${deptHtml}</div>
     <div class="ai-panel">
-      <div class="ai-badge">Coming Soon</div>
+      <div class="ai-badge">OISD-STD-225 RAG · Groq LLaMA</div>
       <h3>AI Recommendation Engine</h3>
-      <p>LLaMA + RAG-powered corrective action suggestions available once the guide provides the recommendation corpus.</p>
+      <p>Corrective actions grounded on OISD-STD-225 are generated for every Medium &amp; High risk item and shown inline below. Items still processing show "Generating…".</p>
     </div>
     <div class="card" style="margin-top:14px;"><h2>All Items (${d.items.length})</h2>
       <div class="items-accordion">${accordionHtml}</div>
@@ -761,6 +792,22 @@ async function loadDeptDetail(id) {
         ? `<span class="resolved-badge">&#10003; Resolved by ${escHtml(it.resolved_by_name)} &middot; ${fmtDateTime(it.resolved_at)}</span>`
         : `<button class="resolve-btn" id="rbtn-${it.id}" onclick="resolveDeptItem(${d.id},${it.id},this)">Mark Resolved</button>`;
     }
+    let recHtml = '';
+    if (isActionable) {
+      if (it.recommendation) {
+        const secs = (it.recommendation_sections || []).join(' · §');
+        recHtml = `<div class="rec-box">
+          <div class="rec-label">AI Recommendation (OISD-STD-225)</div>
+          <div class="rec-text">${escHtml(it.recommendation)}</div>
+          ${secs ? `<div class="rec-cite">Source: OISD-STD-225 §${escHtml(secs)}</div>` : ''}
+        </div>`;
+      } else {
+        recHtml = `<div class="rec-box rec-pending">
+          <div class="rec-label">AI Recommendation</div>
+          <div class="rec-text">Generating…</div>
+        </div>`;
+      }
+    }
     const q = qtext(it.section, it.item_id);
     return `
     <div class="item-detail-row" id="dept-item-${it.id}">
@@ -772,6 +819,7 @@ async function loadDeptDetail(id) {
         ${actionHtml}
       </div>
       ${it.remark ? `<div class="item-remark">"${escHtml(it.remark)}"</div>` : ''}
+      ${recHtml}
     </div>`;
   }
 
@@ -788,6 +836,11 @@ async function loadDeptDetail(id) {
       <div class="score-card"><div class="s-lbl">Compliance</div><div class="s-val">${(dr.compliance||0).toFixed(1)}</div><div class="s-unit">%</div></div>
       <div class="score-card"><div class="s-lbl">Numerical</div><div class="s-val">${(dr.numerical_risk||0).toFixed(1)}</div><div class="s-unit">risk</div></div>
       <div class="score-card"><div class="s-lbl">Hidden Risks</div><div class="s-val" style="color:var(--high)">${dr.hidden_risks||0}</div><div class="s-unit">items</div></div>
+    </div>
+    <div class="ai-panel">
+      <div class="ai-badge">OISD-STD-225 RAG · Groq LLaMA</div>
+      <h3>AI Recommendation Engine</h3>
+      <p>Corrective actions grounded on OISD-STD-225 are shown inline for each Medium &amp; High risk item below.</p>
     </div>
     <div class="card"><h2>${d.department} Items (${d.items.length})</h2>${itemsHtml}</div>`;
 }

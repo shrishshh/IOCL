@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class ChecklistItem(BaseModel):
     section: str
     item_id: str
+    question: str = ""       # item description text, used for RAG query
     response: Literal["Yes", "No", "NA"]
     remark: str
 

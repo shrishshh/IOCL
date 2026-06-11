@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
@@ -26,6 +28,12 @@ def _ro_map(ro_ids: list[int], session: Session) -> dict[int, RO]:
 
 
 def _ser_item(it: InspectionItem) -> dict:
+    rec_sections: Any = []
+    if it.recommendation_sections:
+        try:
+            rec_sections = json.loads(it.recommendation_sections)
+        except Exception:
+            rec_sections = []
     return {
         "id": it.id,
         "item_id": it.item_id,
@@ -36,6 +44,8 @@ def _ser_item(it: InspectionItem) -> dict:
         "resolved": it.resolved,
         "resolved_by_name": it.resolved_by_name,
         "resolved_at": it.resolved_at,
+        "recommendation": it.recommendation,
+        "recommendation_sections": rec_sections,
     }
 
 

@@ -15,6 +15,7 @@ with open(_BUNDLE_PATH, "rb") as _f:
 from sentence_transformers import SentenceTransformer  # noqa: E402 (after pickle load)
 
 _encoder = SentenceTransformer(_bundle["encoder_name"])
+encoder  = _encoder   # public alias reused by the RAG retriever
 
 
 def predict_labels(remarks: list[str]) -> list[str]:

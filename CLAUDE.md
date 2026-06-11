@@ -16,7 +16,7 @@ fusing them.
 Final deliverable: a **multi-role authenticated PWA** where inspectors submit checklists,
 zone heads review overall risk across their zone, and department officers see per-department risk.
 
-## Architecture (v2 — multi-role platform)
+## Architecture (v3 — RAG recommendation layer added)
 ```
 Inspector fills checklist (144 items: Yes/No/NA + Remark)
         │
@@ -30,14 +30,18 @@ NUMERICAL   SEMANTIC
  COMBINED RISK ENGINE  →  Final Risk Index = 0.40*numerical + 0.60*semantic
  assess_by_department()    Same formulas restricted to each dept's section
         ▼
+ RAG RECOMMENDATION  →  For each Medium/High item: MiniLM retrieval over
+ (BackgroundTask)        OISD-STD-225 Chroma index → Groq LLaMA generates
+                         grounded corrective-action text + cited sections.
+                         Stored on inspection_items; never shown to inspector.
+        ▼
  Backend API (FastAPI)  →  JWT-authenticated, role-scoped endpoints
         ↓
- SQLite DB (iocl.db)   →  persists inspections, items, dept risks
+ SQLite DB (iocl.db)   →  persists inspections, items (incl. recommendations), dept risks
         ↓
  PWA front end          →  login → role-based view (inspector / zone_head / dept_officer)
+                           Zone head + dept officer see inline RAG recommendations
 ```
-A **LLaMA + RAG recommendation layer** is planned but **deferred** until the project guide
-provides the "suggestion rule book". Placeholder panel in the PWA.
 
 ## Repository structure
 ```
@@ -58,17 +62,25 @@ IOCL/
     ├── database.py      # engine (iocl.db), get_session, create_db_and_tables
     ├── auth.py          # JWT (python-jose), bcrypt (passlib), require_role()
     ├── risk_engine.py   # assess(), assess_by_department(), section_scores(); no pandas
-    ├── classifier.py    # loads bundle + SentenceTransformer once at import
-    ├── schemas.py       # Pydantic models (ChecklistItem etc.)
+    ├── classifier.py    # loads bundle + SentenceTransformer once at import; exports `encoder`
+    ├── schemas.py       # Pydantic models (ChecklistItem with `question` field, etc.)
     ├── main.py          # FastAPI app; mounts all routers + serves PWA at /
-    ├── seed.py          # idempotent seed: zones/offices/ROs/users + 40 historical inspections
+    ├── seed.py          # idempotent seed: zones/offices/ROs/users
     ├── smoke_test.py    # end-to-end API smoke tests (run while server is up)
     ├── requirements.txt
     ├── test_request.py
+    ├── rag/
+    │   ├── __init__.py
+    │   ├── corpus/OISD-STD-225.pdf   # place PDF here before running ingest
+    │   ├── vectorstore/              # Chroma DB — gitignored, created by ingest.py
+    │   ├── ingest.py    # run once: py -3.11 -m backend.rag.ingest
+    │   ├── retriever.py # reuses MiniLM encoder; retrieve(query, k) → list[dict]
+    │   ├── llm.py       # Groq adapter (OpenAI SDK); generate(system, user) → str|None
+    │   └── recommend.py # recommend_for_item(...) → {text, cited_sections}
     └── routes/
         ├── __init__.py
         ├── auth_routes.py    # POST /auth/login, GET /auth/me
-        ├── inspector.py      # GET /my/ros, POST /inspections
+        ├── inspector.py      # GET /my/ros, POST /inspections (+ BackgroundTask for RAG)
         ├── zone_head.py      # GET /zone/inspections, GET /inspections/{id}
         └── dept_officer.py   # GET /dept/inspections, GET /dept/inspections/{id}
 ```
@@ -81,7 +93,7 @@ IOCL/
 | `ros` | id, code (RO0001…), name, office_id, profile |
 | `users` | id, username (unique), password_hash, role, full_name, office_id?, zone_id?, department? |
 | `inspections` | id, ro_id, submitted_by, submitted_at, overall_risk, final_risk_index, compliance_score, numerical_risk_score, semantic_risk_score, hidden_risks, label_counts_json |
-| `inspection_items` | id, inspection_id (indexed), section, item_id, response, remark, predicted_label |
+| `inspection_items` | id, inspection_id (indexed), section, item_id, **question**, response, remark, predicted_label, **recommendation**, **recommendation_sections**, resolved, resolved_by_user_id, resolved_by_name, resolved_at |
 | `department_risks` | id, inspection_id (indexed), department, compliance, numerical_risk, semantic_risk, final_index, risk_band, hidden_risks |
 
 ## Org hierarchy (seeded from IOCL_Inspection_Summary.csv)
@@ -154,10 +166,13 @@ GET  /dept/inspections/{id}                         → {dept, dept_risk, items 
 POST /dept/inspections/{id}/items/{item_db_id}/resolve  → resolved item; idempotent; 403 if wrong office/dept; 400 if label=Low
 ```
 
-Items returned by both detail endpoints now include resolution fields:
-`id, item_id, section, response, remark, predicted_label, resolved, resolved_by_name, resolved_at`
-`resolved_at` is a UTC ISO string (e.g. `2026-06-11T12:04:38+00:00`); formatted in UI as "11 Jun 2026, 12:04".
-Only Medium/High items are resolvable. Re-resolving is a no-op (idempotent).
+Items returned by both detail endpoints now include resolution fields AND recommendation fields:
+`id, item_id, section, response, remark, predicted_label, resolved, resolved_by_name, resolved_at, recommendation, recommendation_sections`
+- `resolved_at` is a UTC ISO string (e.g. `2026-06-11T12:04:38+00:00`); formatted in UI as "11 Jun 2026, 12:04".
+- Only Medium/High items are resolvable. Re-resolving is a no-op (idempotent).
+- `recommendation` is a string or null (null = not yet generated or LLM failed).
+- `recommendation_sections` is a JSON list of cited OISD-STD-225 section identifiers (e.g. `["5.3", "Annexure II"]`).
+- Inspector never sees recommendations; they are only exposed on zone-head and dept-officer detail endpoints.
 
 ## Seeding & demo credentials
 Run once (idempotent):
@@ -207,15 +222,61 @@ Live submissions always use the BERT classifier.
 - [x] Multi-role PWA — login page + role-based routing + inspector checklist + zone head dashboard + dept officer dashboard
 - [x] Issue-resolution workflow — dept officers mark Medium/High items resolved (name + UTC timestamp); zone heads see read-only badge
 - [x] Question text on detail screens — `CHECKLIST_MAP` built from JS `CHECKLIST` array at page load; zero backend changes
-- [ ] (Deferred) LLaMA + RAG recommendation panel — when the guide provides the rule book
+- [x] RAG recommendation layer — OISD-STD-225 Chroma index + Groq LLaMA; grounded corrective-actions per Medium/High item; BackgroundTask on submit; shown inline for zone head + dept officer
+
+## RAG recommendation layer
+### Corpus & chunking
+- **PDF**: `backend/rag/corpus/OISD-STD-225.pdf` (place manually; gitignored indirectly via vectorstore).
+- **Chunking strategy**: clause-level split on numbered sub-clauses (e.g. `5.3`, `10.i`, `Annexure II`). Falls back to a section-aware sliding window (~400 chars, ~50 overlap) if fewer than 20 clause chunks are detected.
+- **Metadata per chunk**: `{source, section, section_name, type}` where `type ∈ {clause, annexure_row}`.
+
+### Vector store
+- **Engine**: Chroma, local + persistent at `backend/rag/vectorstore/` (gitignored).
+- **Embeddings**: same `all-MiniLM-L6-v2` encoder already loaded by `backend/classifier.py` — no second model loaded. Accessed via `backend.classifier.encoder` (public alias).
+- **Similarity**: cosine (`hnsw:space=cosine`), pre-computed; no Chroma embedding function used.
+
+### LLM adapter (backend/rag/llm.py)
+- **Provider**: Groq via the OpenAI SDK (`openai` package), base URL `https://api.groq.com/openai/v1`.
+- **Env vars** (read from `.env` at repo root):
+  - `GROQ_API_KEY` — required; if absent, `generate()` returns `None` silently.
+  - `GROQ_MODEL` — default `llama-3.1-8b-instant`.
+  - `GROQ_BASE_URL` — default `https://api.groq.com/openai/v1`; override for local models.
+- To switch providers: change just the three env vars — no code change needed.
+
+### Submit flow
+- At `POST /inspections`, after DB commit, `BackgroundTasks.add_task(_generate_recommendations, insp.id)` fires asynchronously.
+- The background function opens a fresh DB session, queries Medium/High items, calls `recommend_for_item` for each, stores `recommendation` + `recommendation_sections` (JSON list) on the item.
+- Any LLM failure stores `null` on that item; submission is never broken.
+- Inspector's `/inspections` response returns immediately without recommendations (they fill in seconds later).
+
+### New schema fields on inspection_items
+| Field | Type | Notes |
+|---|---|---|
+| `question` | str (default "") | Item description text, passed from frontend at submit, used for RAG query |
+| `recommendation` | str nullable | RAG-generated corrective action (null until background task completes) |
+| `recommendation_sections` | str nullable | JSON list of cited OISD-STD-225 section IDs |
+
+### One-time ingestion (after placing PDF)
+```bash
+py -3.11 -m backend.rag.ingest
+```
 
 ## How to run
 ```bash
-# First time only
+# First time only (or after adding new deps)
 py -3.11 -m pip install -r backend/requirements.txt
+
+# Configure secrets
+copy .env.example .env       # then edit .env and set GROQ_API_KEY
+
+# Rebuild DB (needed after schema changes — drops existing iocl.db)
+del iocl.db
 py -3.11 -m backend.seed
 
-# Every time
+# Ingest OISD-STD-225 (once, after placing PDF at backend/rag/corpus/OISD-STD-225.pdf)
+py -3.11 -m backend.rag.ingest
+
+# Start server
 py -3.11 -m uvicorn backend.main:app --port 8000
 # Open http://localhost:8000
 ```
@@ -225,4 +286,6 @@ py -3.11 -m uvicorn backend.main:app --port 8000
 - Resolve `.pkl` path relative to repo root (pathlib), never hardcode absolute path.
 - The serving path must stay **pandas-free**; pandas is only for the analysis notebooks.
 - **Pin `bcrypt==4.0.1`** — passlib 1.7.x is incompatible with bcrypt >= 4.1 (wrap-bug detection hits 72-byte limit).
-- Tech stack: Python 3.11, FastAPI, SQLModel, SQLite, sentence-transformers, scikit-learn, python-jose, passlib.
+- **Drop and re-seed `iocl.db`** after any `InspectionItem` schema change — SQLite's `CREATE TABLE IF NOT EXISTS` won't add new columns automatically.
+- `GROQ_API_KEY` must be in `.env` (gitignored) or shell env — never hardcode.
+- Tech stack: Python 3.11, FastAPI, SQLModel, SQLite, sentence-transformers, scikit-learn, python-jose, passlib, chromadb, openai (Groq), pypdf, python-dotenv.
