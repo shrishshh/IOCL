@@ -149,17 +149,22 @@ GET  /zone/inspections        → [{id, ro_name, submitted_at, overall_risk, fin
 GET  /inspections/{id}        → full detail: items + overall risk + dept breakdown + section_flags
 
 # Dept Officer
-GET  /dept/inspections        → [{id, ro_name, submitted_at, dept_risk_band, dept_final_index}]
-GET  /dept/inspections/{id}   → {dept, dept_risk, items (dept section only)}
+GET  /dept/inspections                              → [{id, ro_name, submitted_at, dept_risk_band, dept_final_index}]
+GET  /dept/inspections/{id}                         → {dept, dept_risk, items (dept section only, includes resolution fields)}
+POST /dept/inspections/{id}/items/{item_db_id}/resolve  → resolved item; idempotent; 403 if wrong office/dept; 400 if label=Low
 ```
+
+Items returned by both detail endpoints now include resolution fields:
+`id, item_id, section, response, remark, predicted_label, resolved, resolved_by_name, resolved_at`
+`resolved_at` is a UTC ISO string (e.g. `2026-06-11T12:04:38+00:00`); formatted in UI as "11 Jun 2026, 12:04".
+Only Medium/High items are resolvable. Re-resolving is a no-op (idempotent).
 
 ## Seeding & demo credentials
 Run once (idempotent):
 ```
 py -3.11 -m backend.seed
 ```
-Historical inspections: 40 records imported from IOCL_Inspection_Dataset.csv (2 per office).
-**These use the stored `risk_level` labels — BERT is NOT re-run for historical data.**
+Dashboards start empty — no historical data is seeded. All inspection data comes from live submissions.
 Live submissions always use the BERT classifier.
 
 ### Demo accounts (password: `demo1234` for all)
@@ -198,8 +203,10 @@ Live submissions always use the BERT classifier.
 - [x] SQLite database with SQLModel (iocl.db at repo root)
 - [x] JWT auth — OAuth2 password flow, 8h tokens, bcrypt passwords
 - [x] Role-based API — inspector / zone_head / dept_officer with scope enforcement
-- [x] Idempotent seed script — 5 zones, 20 offices, 89 ROs, 43 demo users, 40 historical inspections
+- [x] Idempotent seed script — 5 zones, 20 offices, 89 ROs, 43 demo users; dashboards start empty (live data only)
 - [x] Multi-role PWA — login page + role-based routing + inspector checklist + zone head dashboard + dept officer dashboard
+- [x] Issue-resolution workflow — dept officers mark Medium/High items resolved (name + UTC timestamp); zone heads see read-only badge
+- [x] Question text on detail screens — `CHECKLIST_MAP` built from JS `CHECKLIST` array at page load; zero backend changes
 - [ ] (Deferred) LLaMA + RAG recommendation panel — when the guide provides the rule book
 
 ## How to run

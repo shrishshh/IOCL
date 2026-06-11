@@ -199,6 +199,23 @@
     .ai-panel h3 { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
     .ai-panel p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
 
+    /* ── Resolution workflow ─────────────────────────────────────────────── */
+    .item-question { font-size: 13px; font-weight: 600; color: var(--text);
+                     margin-bottom: 6px; line-height: 1.4; }
+    .item-detail-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+                        margin-bottom: 4px; }
+    .resolve-btn { padding: 4px 12px; border-radius: 5px; border: 1.5px solid #16A34A;
+                   font-size: 11px; font-weight: 700; cursor: pointer; background: white;
+                   color: #16A34A; transition: all .15s; white-space: nowrap; }
+    .resolve-btn:hover { background: #16A34A; color: white; }
+    .resolve-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .resolved-badge { display: inline-flex; align-items: center; gap: 4px;
+                      background: #DCFCE7; color: #15803D; border-radius: 5px;
+                      padding: 3px 9px; font-size: 11px; font-weight: 600; }
+    .unresolved-badge { display: inline-flex; align-items: center; gap: 4px;
+                        background: #FEF3C7; color: #92400E; border-radius: 5px;
+                        padding: 3px 9px; font-size: 11px; font-weight: 600; }
+
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4);
                border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite;
                vertical-align: middle; margin-right: 6px; }
@@ -625,15 +642,26 @@ async function loadZhDetail(id) {
         <div class="section-chevron">&#9660;</div>
       </div>
       <div class="section-body">
-        ${items.map(it => `
+        ${items.map(it => {
+          const isActionable = it.predicted_label === 'Medium' || it.predicted_label === 'High';
+          const resStatus = isActionable
+            ? (it.resolved
+                ? `<span class="resolved-badge">&#10003; Resolved by ${escHtml(it.resolved_by_name)} &middot; ${fmtDateTime(it.resolved_at)}</span>`
+                : `<span class="unresolved-badge">&#9888; Unresolved</span>`)
+            : '';
+          const q = qtext(it.section, it.item_id);
+          return `
           <div class="item-detail-row">
-            <div class="item-detail-top">
+            ${q ? `<div class="item-question">${escHtml(q)}</div>` : ''}
+            <div class="item-detail-meta">
               <span class="item-id">${it.item_id}</span>
               <span class="r-btn active-${it.response.toLowerCase()}" style="cursor:default;pointer-events:none;padding:3px 10px;font-size:11px;">${it.response}</span>
               <span class="label-chip chip-${it.predicted_label.toLowerCase()}">${it.predicted_label}</span>
+              ${resStatus}
             </div>
             ${it.remark ? `<div class="item-remark">"${escHtml(it.remark)}"</div>` : ''}
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
     </div>`).join('');
 
@@ -722,15 +750,32 @@ async function loadDeptDetail(id) {
   const risk = (dr.risk_band || 'low').toLowerCase();
   const body = document.getElementById('deptDetailBody');
 
-  const itemsHtml = d.items.map(it => `
-    <div class="item-detail-row">
-      <div class="item-detail-top">
+  // Store current insp_id so resolveDeptItem can reference it
+  S.currentDeptInspId = d.id;
+
+  function renderDeptItem(it) {
+    const isActionable = it.predicted_label === 'Medium' || it.predicted_label === 'High';
+    let actionHtml = '';
+    if (isActionable) {
+      actionHtml = it.resolved
+        ? `<span class="resolved-badge">&#10003; Resolved by ${escHtml(it.resolved_by_name)} &middot; ${fmtDateTime(it.resolved_at)}</span>`
+        : `<button class="resolve-btn" id="rbtn-${it.id}" onclick="resolveDeptItem(${d.id},${it.id},this)">Mark Resolved</button>`;
+    }
+    const q = qtext(it.section, it.item_id);
+    return `
+    <div class="item-detail-row" id="dept-item-${it.id}">
+      ${q ? `<div class="item-question">${escHtml(q)}</div>` : ''}
+      <div class="item-detail-meta">
         <span class="item-id">${it.item_id}</span>
         <span class="r-btn active-${it.response.toLowerCase()}" style="cursor:default;pointer-events:none;padding:3px 10px;font-size:11px;">${it.response}</span>
         <span class="label-chip chip-${it.predicted_label.toLowerCase()}">${it.predicted_label}</span>
+        ${actionHtml}
       </div>
       ${it.remark ? `<div class="item-remark">"${escHtml(it.remark)}"</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }
+
+  const itemsHtml = d.items.map(renderDeptItem).join('');
 
   body.innerHTML = `
     <div class="risk-banner ${risk}">
@@ -751,6 +796,24 @@ function showDeptList() {
   document.getElementById('dept-list-view').style.display   = 'block';
   document.getElementById('dept-detail-view').style.display = 'none';
   window.scrollTo(0, 0);
+}
+
+async function resolveDeptItem(insp_id, item_db_id, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  const res = await apiFetch(`/dept/inspections/${insp_id}/items/${item_db_id}/resolve`, { method: 'POST' });
+  if (!res || !res.ok) {
+    btn.disabled = false;
+    btn.textContent = 'Mark Resolved';
+    showToast('Failed to resolve item');
+    return;
+  }
+  const it = await res.json();
+  const meta = btn.closest('.item-detail-meta');
+  const badge = document.createElement('span');
+  badge.className = 'resolved-badge';
+  badge.innerHTML = `&#10003; Resolved by ${escHtml(it.resolved_by_name || '')} &middot; ${fmtDateTime(it.resolved_at)}`;
+  meta.replaceChild(badge, btn);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -945,6 +1008,17 @@ const CHECKLIST = [
   ]}
 ];
 
+// Lookup: "section::item_id" -> question description text
+// Built once from CHECKLIST so detail views never need re-seeding to show questions.
+const CHECKLIST_MAP = {};
+for (const sec of CHECKLIST)
+  for (const it of sec.items)
+    CHECKLIST_MAP[`${sec.section}::${it.item_id}`] = it.description;
+
+function qtext(section, item_id) {
+  return CHECKLIST_MAP[`${section}::${item_id}`] || '';
+}
+
 const TOTAL = CHECKLIST.reduce((a, s) => a + s.items.length, 0);
 let responses = {};
 
@@ -1104,6 +1178,16 @@ function fmtDate(iso) {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }); }
   catch { return iso.slice(0, 10); }
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+    const time = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false });
+    return `${date}, ${time}`;
+  } catch { return iso.slice(0, 16).replace('T', ' '); }
 }
 
 function escHtml(s) {

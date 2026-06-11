@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
@@ -10,6 +12,8 @@ router = APIRouter(tags=["dept_officer"])
 
 _do = require_role("dept_officer")
 
+_RESOLVABLE = {"Medium", "High"}
+
 
 def _office_ro_ids(user: User, session: Session) -> list[int]:
     ros = session.exec(select(RO).where(RO.office_id == user.office_id)).all()
@@ -19,6 +23,20 @@ def _office_ro_ids(user: User, session: Session) -> list[int]:
 def _ro_map(ro_ids: list[int], session: Session) -> dict[int, RO]:
     ros = session.exec(select(RO).where(RO.id.in_(ro_ids))).all()
     return {r.id: r for r in ros}
+
+
+def _ser_item(it: InspectionItem) -> dict:
+    return {
+        "id": it.id,
+        "item_id": it.item_id,
+        "section": it.section,
+        "response": it.response,
+        "remark": it.remark,
+        "predicted_label": it.predicted_label,
+        "resolved": it.resolved,
+        "resolved_by_name": it.resolved_by_name,
+        "resolved_at": it.resolved_at,
+    }
 
 
 @router.get("/dept/inspections")
@@ -48,7 +66,7 @@ def list_dept_inspections(
     dr_map = {dr.inspection_id: dr for dr in dept_risks}
 
     result = []
-    for insp in inspections:
+    for insp in sorted(inspections, key=lambda i: i.submitted_at, reverse=True):
         dr = dr_map.get(insp.id)
         result.append({
             "id": insp.id,
@@ -109,13 +127,47 @@ def get_dept_inspection_detail(
             "risk_band": dr.risk_band if dr else None,
             "hidden_risks": dr.hidden_risks if dr else None,
         },
-        "items": [
-            {
-                "item_id": it.item_id,
-                "response": it.response,
-                "remark": it.remark,
-                "predicted_label": it.predicted_label,
-            }
-            for it in dept_items
-        ],
+        "items": [_ser_item(it) for it in dept_items],
     }
+
+
+@router.post("/dept/inspections/{insp_id}/items/{item_db_id}/resolve")
+def resolve_item(
+    insp_id: int,
+    item_db_id: int,
+    user: User = Depends(_do),
+    session: Session = Depends(get_session),
+):
+    if not user.office_id or not user.department:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Dept officer missing office or department")
+
+    insp = session.get(Inspection, insp_id)
+    if not insp:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection not found")
+
+    ro = session.get(RO, insp.ro_id)
+    if ro.office_id != user.office_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Inspection is outside your office")
+
+    item = session.get(InspectionItem, item_db_id)
+    if not item or item.inspection_id != insp_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Item not found in this inspection")
+
+    dept_section = DEPT_SECTIONS.get(user.department)
+    if item.section != dept_section:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Item is not in your department")
+
+    if item.predicted_label not in _RESOLVABLE:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only Medium/High items can be resolved")
+
+    # Idempotent — re-resolving is a no-op
+    if not item.resolved:
+        item.resolved = True
+        item.resolved_by_user_id = user.id
+        item.resolved_by_name = user.full_name
+        item.resolved_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+
+    return _ser_item(item)

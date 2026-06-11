@@ -25,6 +25,20 @@ def _ro_map(ro_ids: list[int], session: Session) -> dict[int, RO]:
     return {r.id: r for r in ros}
 
 
+def _ser_item(it: InspectionItem) -> dict:
+    return {
+        "id": it.id,
+        "section": it.section,
+        "item_id": it.item_id,
+        "response": it.response,
+        "remark": it.remark,
+        "predicted_label": it.predicted_label,
+        "resolved": it.resolved,
+        "resolved_by_name": it.resolved_by_name,
+        "resolved_at": it.resolved_at,
+    }
+
+
 @router.get("/zone/inspections")
 def list_zone_inspections(
     user: User = Depends(_zh),
@@ -37,18 +51,22 @@ def list_zone_inspections(
         select(Inspection).where(Inspection.ro_id.in_(ro_ids))
     ).all()
     ro_m = _ro_map(ro_ids, session)
-    return [
-        {
-            "id": insp.id,
-            "ro_name": ro_m[insp.ro_id].name,
-            "ro_code": ro_m[insp.ro_id].code,
-            "submitted_at": insp.submitted_at,
-            "overall_risk": insp.overall_risk,
-            "final_risk_index": insp.final_risk_index,
-            "compliance_score": insp.compliance_score,
-        }
-        for insp in inspections
-    ]
+    return sorted(
+        [
+            {
+                "id": insp.id,
+                "ro_name": ro_m[insp.ro_id].name,
+                "ro_code": ro_m[insp.ro_id].code,
+                "submitted_at": insp.submitted_at,
+                "overall_risk": insp.overall_risk,
+                "final_risk_index": insp.final_risk_index,
+                "compliance_score": insp.compliance_score,
+            }
+            for insp in inspections
+        ],
+        key=lambda x: x["submitted_at"],
+        reverse=True,
+    )
 
 
 @router.get("/inspections/{insp_id}")
@@ -99,16 +117,7 @@ def get_inspection_detail(
         "hidden_risks": insp.hidden_risks,
         "label_counts": json.loads(insp.label_counts_json),
         "section_flags": flags,
-        "items": [
-            {
-                "section": it.section,
-                "item_id": it.item_id,
-                "response": it.response,
-                "remark": it.remark,
-                "predicted_label": it.predicted_label,
-            }
-            for it in db_items
-        ],
+        "items": [_ser_item(it) for it in db_items],
         "department_risks": [
             {
                 "department": dr.department,
