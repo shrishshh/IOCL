@@ -668,13 +668,13 @@ async function loadZhDetail(id) {
           if (isActionable) {
             if (it.recommendation) {
               const secs = (it.recommendation_sections || []).join(' · §');
-              recHtml = `<div class="rec-box">
+              recHtml = `<div class="rec-box" id="zh-rec-${it.id}">
                 <div class="rec-label">AI Recommendation (OISD-STD-225)</div>
                 <div class="rec-text">${escHtml(it.recommendation)}</div>
                 ${secs ? `<div class="rec-cite">Source: OISD-STD-225 §${escHtml(secs)}</div>` : ''}
               </div>`;
             } else {
-              recHtml = `<div class="rec-box rec-pending">
+              recHtml = `<div class="rec-box rec-pending" id="zh-rec-${it.id}">
                 <div class="rec-label">AI Recommendation</div>
                 <div class="rec-text">Generating…</div>
               </div>`;
@@ -722,9 +722,44 @@ async function loadZhDetail(id) {
     <div class="card" style="margin-top:14px;"><h2>All Items (${d.items.length})</h2>
       <div class="items-accordion">${accordionHtml}</div>
     </div>`;
+
+  const pending = d.items.filter(it =>
+    (it.predicted_label === 'Medium' || it.predicted_label === 'High') && !it.recommendation
+  );
+  if (pending.length) { _zhPollId = id; _startZhPoll(id, 0); }
+}
+
+let _zhPollTimer = null, _zhPollId = null;
+function _startZhPoll(id, attempts) {
+  if (attempts >= 6) return;
+  _zhPollTimer = setTimeout(async () => {
+    if (_zhPollId !== id) return;
+    const res = await apiFetch(`/inspections/${id}`);
+    if (!res || !res.ok) return;
+    const fresh = await res.json();
+    let stillPending = false;
+    for (const it of fresh.items) {
+      if (it.predicted_label !== 'Medium' && it.predicted_label !== 'High') continue;
+      const el = document.getElementById(`zh-rec-${it.id}`);
+      if (!el) continue;
+      if (it.recommendation) {
+        const secs = (it.recommendation_sections || []).join(' · §');
+        el.outerHTML = `<div class="rec-box" id="zh-rec-${it.id}">
+          <div class="rec-label">AI Recommendation (OISD-STD-225)</div>
+          <div class="rec-text">${escHtml(it.recommendation)}</div>
+          ${secs ? `<div class="rec-cite">Source: OISD-STD-225 §${escHtml(secs)}</div>` : ''}
+        </div>`;
+      } else {
+        stillPending = true;
+      }
+    }
+    if (stillPending && _zhPollId === id) _startZhPoll(id, attempts + 1);
+    else _zhPollId = null;
+  }, 5000);
 }
 
 function showZhList() {
+  _zhPollId = null; clearTimeout(_zhPollTimer);
   document.getElementById('zh-list-view').style.display   = 'block';
   document.getElementById('zh-detail-view').style.display = 'none';
   window.scrollTo(0, 0);
@@ -796,13 +831,13 @@ async function loadDeptDetail(id) {
     if (isActionable) {
       if (it.recommendation) {
         const secs = (it.recommendation_sections || []).join(' · §');
-        recHtml = `<div class="rec-box">
+        recHtml = `<div class="rec-box" id="dept-rec-${it.id}">
           <div class="rec-label">AI Recommendation (OISD-STD-225)</div>
           <div class="rec-text">${escHtml(it.recommendation)}</div>
           ${secs ? `<div class="rec-cite">Source: OISD-STD-225 §${escHtml(secs)}</div>` : ''}
         </div>`;
       } else {
-        recHtml = `<div class="rec-box rec-pending">
+        recHtml = `<div class="rec-box rec-pending" id="dept-rec-${it.id}">
           <div class="rec-label">AI Recommendation</div>
           <div class="rec-text">Generating…</div>
         </div>`;
@@ -843,9 +878,44 @@ async function loadDeptDetail(id) {
       <p>Corrective actions grounded on OISD-STD-225 are shown inline for each Medium &amp; High risk item below.</p>
     </div>
     <div class="card"><h2>${d.department} Items (${d.items.length})</h2>${itemsHtml}</div>`;
+
+  const doPending = d.items.filter(it =>
+    (it.predicted_label === 'Medium' || it.predicted_label === 'High') && !it.recommendation
+  );
+  if (doPending.length) { _doPollId = id; _startDoPoll(id, 0); }
+}
+
+let _doPollTimer = null, _doPollId = null;
+function _startDoPoll(id, attempts) {
+  if (attempts >= 6) return;
+  _doPollTimer = setTimeout(async () => {
+    if (_doPollId !== id) return;
+    const res = await apiFetch(`/dept/inspections/${id}`);
+    if (!res || !res.ok) return;
+    const fresh = await res.json();
+    let stillPending = false;
+    for (const it of fresh.items) {
+      if (it.predicted_label !== 'Medium' && it.predicted_label !== 'High') continue;
+      const el = document.getElementById(`dept-rec-${it.id}`);
+      if (!el) continue;
+      if (it.recommendation) {
+        const secs = (it.recommendation_sections || []).join(' · §');
+        el.outerHTML = `<div class="rec-box" id="dept-rec-${it.id}">
+          <div class="rec-label">AI Recommendation (OISD-STD-225)</div>
+          <div class="rec-text">${escHtml(it.recommendation)}</div>
+          ${secs ? `<div class="rec-cite">Source: OISD-STD-225 §${escHtml(secs)}</div>` : ''}
+        </div>`;
+      } else {
+        stillPending = true;
+      }
+    }
+    if (stillPending && _doPollId === id) _startDoPoll(id, attempts + 1);
+    else _doPollId = null;
+  }, 5000);
 }
 
 function showDeptList() {
+  _doPollId = null; clearTimeout(_doPollTimer);
   document.getElementById('dept-list-view').style.display   = 'block';
   document.getElementById('dept-detail-view').style.display = 'none';
   window.scrollTo(0, 0);

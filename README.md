@@ -1,15 +1,15 @@
 # IOCL RO Safety Inspection System
 
-An internship project that analyses **IOCL Retail Outlet (petrol pump) safety inspections** using the OISD-GDN-192 Annexure IV checklist.
+An internship project that analyses **IOCL Retail Outlet (petrol pump) safety inspections** using the OISD-GDN-192 Annexure IV checklist (~144 items, each with a Yes/No/NA response and a free-text remark).
 
-Traditional audits only count Yes/No boxes (a compliance score) and miss **hidden risk buried in remarks** — e.g. an item ticked "Yes" whose remark says *"extinguisher present but pressure below minimum"*. This system catches that by fusing two pipelines into a single **Final Risk Index**.
+Traditional audits only count Yes/No boxes (a compliance score) and miss **hidden risk buried in remarks** — e.g. an item ticked "Yes" whose remark says *"extinguisher present but pressure below minimum"*. This system catches that by fusing two pipelines into a single **Final Risk Index**, then generating grounded corrective actions via a RAG layer backed by OISD-STD-225.
 
 ---
 
 ## Architecture
 
 ```
-Officer fills checklist (144 items: Yes / No / NA + Remark)
+Inspector fills checklist (144 items: Yes / No / NA + Remark)
          │
    ┌─────┴──────┐
    ▼            ▼
@@ -18,9 +18,20 @@ NUMERICAL     SEMANTIC
    │            │
    └─────┬──────┘
          ▼
-  Final Risk Index = 0.40 × Numerical + 0.60 × Semantic
+  Combined Risk Engine  →  Final Risk Index = 0.40 × Numerical + 0.60 × Semantic
+  assess_by_department()    Same formulas restricted to each dept's checklist section
          ▼
-  FastAPI backend  →  PWA front end
+  RAG Recommendation  →  For each Medium/High item: MiniLM retrieval over
+  (BackgroundTask)        OISD-STD-225 Chroma index → Groq LLaMA generates
+                          grounded corrective-action text + cited sections.
+                          Stored in DB; never shown to inspector.
+         ▼
+  FastAPI backend  →  JWT-authenticated, role-scoped endpoints
+         ↓
+  SQLite (iocl.db)  →  persists inspections, items (incl. recommendations), dept risks
+         ↓
+  PWA front end  →  login → role-based view (inspector / zone_head / dept_officer)
+                    Zone head + dept officer see inline RAG recommendations
 ```
 
 ---
@@ -30,32 +41,47 @@ NUMERICAL     SEMANTIC
 ```
 IOCL/
 ├── README.md
-├── CLAUDE.md                          # Project context for Claude Code
-├── IOCL_Combined_Risk_Engine.ipynb    # Engine logic & validation notebook
+├── CLAUDE.md                            # Project context for Claude Code
+├── iocl.db                              # SQLite database (created by seed.py)
 │
 ├── NumericalAnalysis/
-│   ├── IOCL_Inspection_Dataset.csv    # 102,528 rows — one per checklist item
-│   ├── IOCL_Inspection_Summary.csv    # 712 rows — one per inspection
+│   ├── IOCL_Inspection_Dataset.csv      # 102,528 rows — one per checklist item
+│   ├── IOCL_Inspection_Summary.csv      # 712 rows — one per inspection
 │   └── IOCL_Numerical_Analysis.ipynb
 │
-├── SymanticAnalysis/                  # (folder name is intentionally kept as-is)
+├── SymanticAnalysis/                    # (folder name kept as-is)
 │   ├── IOCL_Model_Training_CV.ipynb
-│   ├── IOCL_Remarks_ML_Expanded.csv   # 12,473 unique remarks used for training
-│   └── risk_classifier_bundle.pkl     # Trained BERT + LogReg model bundle
+│   ├── IOCL_Remarks_ML_Expanded.csv     # 12,473 unique remarks used for training
+│   └── risk_classifier_bundle.pkl       # Trained BERT + LogReg model bundle
 │
 ├── backend/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI app — /health, /assess, serves PWA
-│   ├── risk_engine.py   # Pure-function scoring logic (no pandas)
-│   ├── classifier.py    # Loads bundle + SentenceTransformer at startup
+│   ├── main.py          # FastAPI app; mounts all routers + serves PWA
+│   ├── models.py        # SQLModel ORM tables
+│   ├── database.py      # engine (iocl.db), get_session, create_db_and_tables
+│   ├── auth.py          # JWT (python-jose), bcrypt, require_role()
+│   ├── risk_engine.py   # assess(), assess_by_department(), section_scores()
+│   ├── classifier.py    # Loads bundle + SentenceTransformer once at import
 │   ├── schemas.py       # Pydantic request/response models
+│   ├── seed.py          # Idempotent seed: zones / offices / ROs / users
+│   ├── smoke_test.py    # End-to-end API smoke tests (run while server is up)
 │   ├── requirements.txt
-│   └── test_request.py  # Quick smoke-test script
+│   ├── rag/
+│   │   ├── corpus/OISD-STD-225.pdf  # Place PDF here before running ingest
+│   │   ├── vectorstore/             # Chroma DB — created by ingest.py
+│   │   ├── ingest.py    # Run once: py -3.11 -m backend.rag.ingest
+│   │   ├── retriever.py # retrieve(query, k) → list[dict]
+│   │   ├── llm.py       # Groq adapter (OpenAI SDK)
+│   │   └── recommend.py # recommend_for_item(...) → {text, cited_sections}
+│   └── routes/
+│       ├── auth_routes.py   # POST /auth/login, GET /auth/me
+│       ├── inspector.py     # GET /my/ros, POST /inspections (+ BackgroundTask for RAG)
+│       ├── zone_head.py     # GET /zone/inspections, GET /inspections/{id}
+│       └── dept_officer.py  # GET /dept/inspections, GET /dept/inspections/{id}, POST …/resolve
 │
 └── frontend/
-    ├── index.html       # PWA — checklist form + dashboard (single file)
-    ├── manifest.json    # PWA install manifest
-    └── sw.js            # Service worker (offline caching)
+    ├── index.html       # Single-file PWA — all roles in one page
+    ├── manifest.json
+    └── sw.js
 ```
 
 ---
@@ -72,16 +98,36 @@ IOCL/
 | Hidden Risks | Items where `response == "Yes"` AND `risk_label == "High"` |
 | Section Flags | Sections with compliance score < 70% |
 
-The High cutoff of 25 reproduces the dataset's own labels at ~92% accuracy across 712 inspections.
+Department risk uses the same formulas restricted to each department's mapped checklist section.
 
 ---
 
 ## Semantic Model
 
-- **Encoder:** `all-MiniLM-L6-v2` (sentence-transformers), frozen — produces 384-dim vectors
+- **Encoder:** `all-MiniLM-L6-v2` (sentence-transformers), frozen — 384-dim vectors
 - **Classifier:** Logistic Regression, selected by 5-fold GroupKFold cross-validation
 - **Performance:** ~79% CV accuracy, ~0.83 held-out macro-F1
-- **Bundle** (`risk_classifier_bundle.pkl`): contains `classifier`, `encoder_name`, `labels`, `embedding_dim`, `cv_macro_f1`
+- **Bundle** (`risk_classifier_bundle.pkl`): contains `classifier`, `encoder_name`, `labels`, `embedding_dim`, `cv_macro_f1` — encoder loaded separately at runtime
+
+---
+
+## RAG Recommendation Layer
+
+- **Corpus:** OISD-STD-225 (PDF), clause-level chunked and ingested into a Chroma vector store
+- **Embeddings:** same `all-MiniLM-L6-v2` encoder already loaded for classification — no second model
+- **LLM:** Groq LLaMA (`llama-3.1-8b-instant` by default) via the OpenAI-compatible SDK
+- **Flow:** on inspection submit, a FastAPI `BackgroundTask` calls `recommend_for_item` for every Medium/High item and stores the result in `inspection_items.recommendation` — submissions are never blocked
+- **Persistence:** recommendations are written once to the DB; subsequent page loads read from SQLite, no LLM call
+
+---
+
+## Roles & Access
+
+| Role | Scope | Can do |
+|------|-------|--------|
+| `inspector` | One office | Submit checklists for ROs in their office; never sees risk results or recommendations |
+| `zone_head` | One zone | View all inspections + full risk breakdown + inline RAG recommendations for all ROs in their zone |
+| `dept_officer` | One office + one department | View inspections for their office's ROs; only their department's items and risk; can mark Medium/High items resolved |
 
 ---
 
@@ -90,99 +136,124 @@ The High cutoff of 25 reproduces the dataset's own labels at ~92% accuracy acros
 ### 1. Install dependencies
 
 ```bash
-pip install -r backend/requirements.txt
+py -3.11 -m pip install -r backend/requirements.txt
 ```
 
-> First run downloads the `all-MiniLM-L6-v2` encoder (~90 MB) if not cached.
+> First run downloads `all-MiniLM-L6-v2` (~90 MB) if not cached.
 
-### 2. Start the server
-
-Run from the **repo root** (`d:\IOCL`):
+### 2. Configure secrets
 
 ```bash
-py -3.11 -m uvicorn backend.main:app --port 8000 --reload
+copy .env.example .env   # then edit .env and set GROQ_API_KEY
 ```
 
-Wait for:
+`.env` fields:
 ```
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000
+GROQ_API_KEY=<your key>
+GROQ_MODEL=llama-3.1-8b-instant   # optional
 ```
 
-> **Windows note:** Use `py -3.11` explicitly — the dependencies are installed on Python 3.11. The default `python` may point to a different version.
-
-### 3. Open the PWA
-
-Go to **`http://localhost:8000`** in your browser.
-
-### 4. Run the smoke-test (optional)
-
-In a second terminal, with the server running:
+### 3. Seed the database
 
 ```bash
-py -3.11 backend/test_request.py
+py -3.11 -m backend.seed
 ```
 
-Returns a full JSON risk assessment for a 4-item sample inspection.
+Creates `iocl.db` with 5 zones, 20 offices, 89 ROs, and 43 demo users. Run this again after any schema change (drop `iocl.db` first — SQLite won't add new columns automatically).
+
+### 4. Ingest OISD-STD-225 (once)
+
+Place the PDF at `backend/rag/corpus/OISD-STD-225.pdf`, then:
+
+```bash
+py -3.11 -m backend.rag.ingest
+```
+
+Only needed once; re-run only if you replace the PDF.
+
+### 5. Start the server
+
+```bash
+py -3.11 -m uvicorn backend.main:app --port 8000
+```
+
+Open **`http://localhost:8000`**.
 
 ---
 
 ## API Reference
 
-### `GET /health`
-```json
-{ "status": "ok" }
-```
+### Auth
 
-### `POST /assess`
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/auth/login` | OAuth2 password form → `{access_token, token_type, role}` |
+| `GET` | `/auth/me` | Returns current user info |
 
-**Request body:**
-```json
-{
-  "inspection_id": "INSP00001",
-  "ro_name": "Delhi Cantonment RO",
-  "items": [
-    { "section": "PPE", "item_id": "A1", "response": "Yes", "remark": "Helmets available but not worn by all workers" },
-    { "section": "PPE", "item_id": "A2", "response": "No",  "remark": "Safety shoes not provided to contract workers" }
-  ]
-}
-```
+All other endpoints require `Authorization: Bearer <token>`.
 
-**Response:**
-```json
-{
-  "inspection_id": "INSP00001",
-  "ro_name": "Delhi Cantonment RO",
-  "overall_risk": "High",
-  "final_risk_index": 41.41,
-  "compliance_score": 72.5,
-  "numerical_risk_score": 27.5,
-  "semantic_risk_score": 50.69,
-  "hidden_risks": 7,
-  "section_flags": { "Housekeeping": 42.86, "Permits": 60.0 },
-  "label_counts": { "Low": 97, "Medium": 21, "High": 26 }
-}
-```
+### Inspector
 
----
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/my/ros` | List ROs in the inspector's office |
+| `POST` | `/inspections` | Submit checklist; triggers RAG background task |
 
-## PWA Features
+### Zone Head
 
-- **144-item checklist** organised into 21 collapsible sections (OISD-GDN-192 Annexure IV)
-- **Yes / No / N/A** toggle buttons with optional remark field per item
-- **Live progress bar** tracking filled items
-- **Demo Fill** button — instantly fills all 144 items with realistic sample data for testing
-- **Dashboard** showing: overall risk band, Final Risk Index, compliance %, numerical & semantic scores, hidden risk count, section flags, label distribution
-- **Installable PWA** with offline support via service worker
-- **AI Recommendation panel** — placeholder for the planned LLaMA + RAG layer
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/zone/inspections` | List all inspections in the zone |
+| `GET` | `/inspections/{id}` | Full detail: items, risk scores, dept breakdown, section flags, RAG recommendations |
+
+### Dept Officer
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/dept/inspections` | List inspections for the officer's office |
+| `GET` | `/dept/inspections/{id}` | Dept-scoped detail: items + dept risk + RAG recommendations |
+| `POST` | `/dept/inspections/{id}/items/{item_id}/resolve` | Mark a Medium/High item resolved (idempotent) |
+
+### Other
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | `{"status": "ok"}` |
 
 ---
 
-## Roadmap
+## Demo Credentials
+
+Password for all accounts: **`demo1234`**
+
+**Zone Heads**
+
+| Username | Zone |
+|----------|------|
+| `zh_delhi_ncr` | Delhi NCR |
+| `zh_up` | UP Region |
+| `zh_rajasthan` | Rajasthan Region |
+| `zh_punjab_haryana` | Punjab Haryana Region |
+| `zh_uttarakhand` | Uttarakhand Region |
+
+**Inspectors** — `insp_off01` through `insp_off20` (one per office)
+
+**Dept Officers** — available for OFF01 (Delhi Central) and OFF08 (Lucknow):
+`dept_ppe_off01`, `dept_housekeeping_off01`, `dept_permits_off01`, `dept_electrical_off01`,
+`dept_hydrocarbon_off01`, `dept_emergency_off01`, `dept_confined_off01`, `dept_welding_off01`,
+`dept_documentation_off01` (and same pattern for `_off08`)
+
+---
+
+## Status
 
 - [x] Semantic pipeline — BERT + LogReg, cross-validated, bundle saved
 - [x] Numerical pipeline — compliance formula, validated against dataset
 - [x] Combined Risk Engine — 40/60 blend, ~90.9% match vs dataset labels
-- [x] FastAPI backend — `/health` and `/assess` endpoints, static file serving
-- [x] PWA front end — checklist form → submit → risk dashboard
-- [ ] LLaMA + RAG recommendation engine *(deferred — awaiting rule book from guide)*
+- [x] SQLite database with SQLModel ORM
+- [x] JWT auth — OAuth2 password flow, 8h tokens, bcrypt hashing
+- [x] Role-based API — inspector / zone_head / dept_officer with scope enforcement
+- [x] Idempotent seed — 5 zones, 20 offices, 89 ROs, 43 demo users
+- [x] Multi-role PWA — login + role-based routing + inspector checklist + zone head dashboard + dept officer dashboard
+- [x] Issue resolution workflow — dept officers mark Medium/High items resolved (name + UTC timestamp); zone heads see read-only badge
+- [x] RAG recommendation layer — OISD-STD-225 Chroma index + Groq LLaMA; grounded corrective-actions per Medium/High item; stored in DB; shown inline for zone head + dept officer
